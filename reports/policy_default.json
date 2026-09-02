@@ -1,0 +1,37 @@
+{
+  "parameters": {
+    "chargeback_fee": 1500.0,
+    "gross_margin_rate": 0.35,
+    "evidence_cost": 40.0,
+    "manual_review_cost": 150.0,
+    "customer_friction_rate": 0.08,
+    "evidence_recovery_rate": 0.45,
+    "review_prevention_rate": 0.65,
+    "refund_cost_rate": 0.35,
+    "risk_program_penalty": 800.0
+  },
+  "records_evaluated": 13355,
+  "action_mix": {
+    "MONITOR": 12722,
+    "PREPARE_EVIDENCE": 404,
+    "MANUAL_REVIEW": 181,
+    "RECOMMEND_REFUND": 48
+  },
+  "intervention_count": 633,
+  "intervention_rate": 0.04739797828528641,
+  "precision": 0.09636650868878358,
+  "recall": 0.6630434782608695,
+  "confusion_matrix": {
+    "true_negative": 12691,
+    "false_positive": 572,
+    "false_negative": 31,
+    "true_positive": 61
+  },
+  "costs": {
+    "do_nothing_baseline_rupees": 453069.1,
+    "policy_cost_rupees": 338948.7778,
+    "false_positive_cost_rupees": 50443.8868,
+    "estimated_net_benefit_rupees": 114120.3222
+  },
+  "disclosure": "This is a held-out synthetic policy backtest. Net benefit depends on the displayed intervention effectiveness and cost assumptions."
+}

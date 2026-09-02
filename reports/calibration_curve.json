@@ -1,0 +1,34 @@
+[
+  {
+    "predicted_probability": 0.0007409267415114919,
+    "observed_rate": 0.00027586206896551725
+  },
+  {
+    "predicted_probability": 0.0007412782605961733,
+    "observed_rate": 0.005398110661268556
+  },
+  {
+    "predicted_probability": 0.0007422480238832238,
+    "observed_rate": 0.0009930486593843098
+  },
+  {
+    "predicted_probability": 0.0008639201913111503,
+    "observed_rate": 0.001095290251916758
+  },
+  {
+    "predicted_probability": 0.0009258534021363711,
+    "observed_rate": 0.0024987506246876563
+  },
+  {
+    "predicted_probability": 0.0018590796816996794,
+    "observed_rate": 0.002296211251435132
+  },
+  {
+    "predicted_probability": 0.008133563570041748,
+    "observed_rate": 0.003777148253068933
+  },
+  {
+    "predicted_probability": 0.04465001831256508,
+    "observed_rate": 0.054878048780487805
+  }
+]

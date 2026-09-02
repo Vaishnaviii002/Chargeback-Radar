@@ -1,0 +1,18 @@
+{
+  "model_version": "0.1.0",
+  "seed": 42,
+  "best_iteration": 1,
+  "training_rows": 59888,
+  "calibration_rows": 6757,
+  "test_rows": 13355,
+  "training_positives": 440,
+  "calibration_positives": 39,
+  "test_positives": 92,
+  "scale_pos_weight": 135.1090909090909,
+  "calibration_base_rate": 0.005771792215480243,
+  "calibration_average_precision": 0.09949493454262945,
+  "test_base_rate": 0.006888805690752527,
+  "test_average_precision": 0.13656154982333668,
+  "unseen_customer_test_rows": 830,
+  "unseen_customer_average_precision": 0.08954451345755693
+}
