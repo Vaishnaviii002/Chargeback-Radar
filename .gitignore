@@ -1,0 +1,31 @@
+# Environment variables and secrets
+.env
+.env.local
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated datasets and models
+data/*.parquet
+data/*.csv
+artifacts/*.joblib
+artifacts/*.pkl
+artifacts/*.txt
+
+# Runtime audit files
+audit.jsonl
+
+# Frontend generated files
+frontend/node_modules/
+frontend/dist/
+
+# Editors and operating system
+.vscode/
+.DS_Store
+Thumbs.db
