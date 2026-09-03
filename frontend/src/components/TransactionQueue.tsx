@@ -15,7 +15,7 @@ type ApiResponse =
   | Transaction[]
   | {
       count: number;
-      items: Transaction[];
+      transactions: Transaction[];
     };
 
 const API_URL =
@@ -58,7 +58,9 @@ export default function TransactionQueue() {
 
         const data: ApiResponse = await response.json();
 
-        setTransactions(Array.isArray(data) ? data : data.items);
+        setTransactions(
+  Array.isArray(data) ? data : data.transactions
+);
       } catch (err) {
         setError(
           err instanceof Error

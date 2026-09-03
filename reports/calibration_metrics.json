@@ -1,11 +1,11 @@
 {
-  "selected_method": "sigmoid",
-  "sigmoid_selection_brier": 0.005358284814691892,
-  "isotonic_selection_brier": 0.0054243322992364625,
-  "test_raw_brier": 0.016564949832211767,
-  "test_calibrated_brier": 0.006308937723520897,
-  "test_raw_log_loss": 0.06646945344466783,
-  "test_calibrated_log_loss": 0.029467884689443002,
-  "test_raw_average_precision": 0.13656154982333668,
-  "test_calibrated_average_precision": 0.13656154982333668
+  "selected_method": "isotonic",
+  "sigmoid_selection_brier": 0.007169833076260316,
+  "isotonic_selection_brier": 0.007088171760857303,
+  "test_raw_brier": 0.015723488853586633,
+  "test_calibrated_brier": 0.0062581254145627025,
+  "test_raw_log_loss": 0.06376921007042137,
+  "test_calibrated_log_loss": 0.027511647180720057,
+  "test_raw_average_precision": 0.1519547555971648,
+  "test_calibrated_average_precision": 0.1492642172195245
 }

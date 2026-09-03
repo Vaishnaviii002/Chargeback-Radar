@@ -92,51 +92,73 @@ def calculate_realised_costs(
     amounts: np.ndarray,
     params: CostParams,
 ) -> np.ndarray:
+    residual_loss, intervention_cost = (
+        calculate_realised_cost_components(
+            actions,
+            labels,
+            amounts,
+            params,
+        )
+    )
+
+    return residual_loss + intervention_cost
+
+
+def calculate_realised_cost_components(
+    actions: np.ndarray,
+    labels: np.ndarray,
+    amounts: np.ndarray,
+    params: CostParams,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Separate remaining loss from the cost of intervening."""
     total_chargeback_loss = (
         amounts
         + params.chargeback_fee
         + params.risk_program_penalty
     )
 
-    realised_cost = np.zeros(len(actions), dtype=float)
+    residual_loss = np.zeros(len(actions), dtype=float)
+    intervention_cost = np.zeros(len(actions), dtype=float)
 
     monitor_mask = actions == "MONITOR"
     evidence_mask = actions == "PREPARE_EVIDENCE"
     review_mask = actions == "MANUAL_REVIEW"
     refund_mask = actions == "RECOMMEND_REFUND"
 
-    realised_cost[monitor_mask] = (
+    residual_loss[monitor_mask] = (
         labels[monitor_mask]
         * total_chargeback_loss[monitor_mask]
     )
 
-    realised_cost[evidence_mask] = (
-        params.evidence_cost
-        + labels[evidence_mask]
+    residual_loss[evidence_mask] = (
+        labels[evidence_mask]
         * (
             total_chargeback_loss[evidence_mask]
             - params.evidence_recovery_rate
             * amounts[evidence_mask]
         )
     )
+    intervention_cost[evidence_mask] = params.evidence_cost
 
-    realised_cost[review_mask] = (
-        params.manual_review_cost
-        + labels[review_mask]
+    residual_loss[review_mask] = (
+        labels[review_mask]
         * (1 - params.review_prevention_rate)
         * total_chargeback_loss[review_mask]
+    )
+    intervention_cost[review_mask] = (
+        params.manual_review_cost
         + (1 - labels[review_mask])
         * params.customer_friction_rate
         * amounts[review_mask]
         * params.gross_margin_rate
     )
 
-    realised_cost[refund_mask] = (
+    intervention_cost[refund_mask] = (
         amounts[refund_mask]
         * params.refund_cost_rate
     )
 
-    return realised_cost
+    return residual_loss, intervention_cost
 
 
 def simulate_policy(
@@ -168,11 +190,17 @@ def simulate_policy(
         chosen_action_indexes
     ]
 
-    realised_policy_cost = calculate_realised_costs(
-        chosen_actions,
-        labels,
-        amounts,
-        params,
+    residual_chargeback_loss, intervention_cost = (
+        calculate_realised_cost_components(
+            chosen_actions,
+            labels,
+            amounts,
+            params,
+        )
+    )
+
+    realised_policy_cost = (
+        residual_chargeback_loss + intervention_cost
     )
 
     total_chargeback_loss = (
@@ -187,6 +215,18 @@ def simulate_policy(
 
     baseline_cost = float(
         baseline_cost_per_transaction.sum()
+    )
+
+    remaining_chargeback_loss = float(
+        residual_chargeback_loss.sum()
+    )
+
+    total_intervention_cost = float(
+        intervention_cost.sum()
+    )
+
+    gross_avoided_loss = (
+        baseline_cost - remaining_chargeback_loss
     )
 
     policy_cost = float(realised_policy_cost.sum())
@@ -229,6 +269,10 @@ def simulate_policy(
     scored_data = test_data.copy()
     scored_data["recommended_action"] = chosen_actions
     scored_data["realised_policy_cost"] = realised_policy_cost
+    scored_data["residual_chargeback_loss"] = (
+        residual_chargeback_loss
+    )
+    scored_data["intervention_cost"] = intervention_cost
     scored_data["baseline_cost"] = (
         baseline_cost_per_transaction
     )
@@ -258,6 +302,13 @@ def simulate_policy(
         },
         "costs": {
             "do_nothing_baseline_rupees": baseline_cost,
+            "remaining_chargeback_loss_rupees": (
+                remaining_chargeback_loss
+            ),
+            "gross_avoided_loss_rupees": gross_avoided_loss,
+            "intervention_cost_rupees": (
+                total_intervention_cost
+            ),
             "policy_cost_rupees": policy_cost,
             "false_positive_cost_rupees": (
                 false_positive_cost
@@ -336,6 +387,14 @@ def main() -> None:
     print(
         "Policy cost:             "
         f"₹{costs['policy_cost_rupees']:,.2f}"
+    )
+    print(
+        "Gross avoided loss:      "
+        f"₹{costs['gross_avoided_loss_rupees']:,.2f}"
+    )
+    print(
+        "Intervention cost:       "
+        f"₹{costs['intervention_cost_rupees']:,.2f}"
     )
     print(
         "False-positive cost:     "

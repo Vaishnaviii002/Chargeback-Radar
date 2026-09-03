@@ -1,5 +1,5 @@
 import json
-from fastapi import HTTPException
+import logging
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from src.post_payment_rules import evaluate_post_payment_rules
 from src.calibrate import probability_to_logit
 from src.decide import (
     ACTIONS,
@@ -19,8 +20,11 @@ from src.decide import (
     calculate_expected_costs,
     simulate_policy,
 )
+from src.rules import evaluate_rules
+from src.explain import explain_payment
 
-
+logger = logging.getLogger(__name__)
+DATA_DIR = Path("data")
 REPORTS_DIR = Path("reports")
 ARTIFACTS_DIR = Path("artifacts")
 
@@ -199,7 +203,13 @@ class PaymentScoreRequest(BaseModel):
         default=10,
         ge=0,
         le=50_000,
+
     )
+
+    is_duplicate_payment: bool = False
+    cancelled_subscription_billed: bool = False
+
+
 
 
 def read_json_file(path: Path) -> dict:
@@ -234,6 +244,28 @@ def load_default_policy_data() -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
             "reports/test_policy.parquet is missing."
+        )
+
+    return pd.read_parquet(path)
+
+@lru_cache(maxsize=1)
+def load_feature_data() -> pd.DataFrame:
+    path = DATA_DIR / "features.parquet"
+
+    if not path.exists():
+        raise FileNotFoundError(
+            "data/features.parquet is missing."
+        )
+
+    return pd.read_parquet(path)
+
+@lru_cache(maxsize=1)
+def load_operation_data() -> pd.DataFrame:
+    path = DATA_DIR / "operations.parquet"
+
+    if not path.exists():
+        raise FileNotFoundError(
+            "data/operations.parquet is missing."
         )
 
     return pd.read_parquet(path)
@@ -342,6 +374,18 @@ def get_curves():
     }
 
 
+@app.get("/api/policy/frontier")
+def get_policy_frontier():
+    return read_json_file(
+        REPORTS_DIR / "policy_frontier.json"
+    )
+
+@app.get("/api/policy/effectiveness")
+def get_effectiveness_sensitivity():
+    return read_json_file(
+        REPORTS_DIR / "effectiveness_sensitivity.json"
+    )
+
 @app.post("/api/simulate")
 def simulate(request: PolicyParamsRequest):
     try:
@@ -410,7 +454,6 @@ def get_transactions(
         ),
     }
 
-
 @app.get("/api/transactions/{payment_id}")
 def get_transaction(payment_id: str):
     try:
@@ -432,6 +475,145 @@ def get_transaction(payment_id: str):
         )
 
     return dataframe_records(transaction)[0]
+
+
+@app.get(
+    "/api/transactions/{payment_id}/explanation"
+)
+def get_transaction_explanation(
+    payment_id: str,
+):
+    try:
+        feature_data = load_feature_data()
+        policy_data = load_default_policy_data()
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        ) from error
+
+    feature_row = feature_data[
+        feature_data["payment_id"] == payment_id
+    ]
+
+    policy_row = policy_data[
+        policy_data["payment_id"] == payment_id
+    ]
+
+    if feature_row.empty or policy_row.empty:
+        raise HTTPException(
+            status_code=404,
+            detail="Transaction not found.",
+        )
+
+    payment = feature_row.iloc[0].to_dict()
+    policy = policy_row.iloc[0]
+
+    try:
+        explanation = {
+            "available": True,
+            **explain_payment(
+                payment,
+                top_n=6,
+            ),
+        }
+    except Exception:
+        logger.exception(
+            "Stored transaction explanation failed."
+        )
+
+        explanation = {
+            "available": False,
+            "method": "TreeSHAP",
+            "top_factors": [],
+            "reason": (
+                "Explanation temporarily unavailable."
+            ),
+        }
+
+    rule_result = evaluate_rules(payment)
+
+    return {
+        "payment_id": payment_id,
+        "customer_id": str(
+            policy["customer_id"]
+        ),
+        "calibrated_probability": float(
+            policy["calibrated_probability"]
+        ),
+        "risk_percentage": round(
+            float(
+                policy["calibrated_probability"]
+            )
+            * 100,
+            3,
+        ),
+        "recommended_action": str(
+            policy["recommended_action"]
+        ),
+        "rules": rule_result,
+        "explanation": explanation,
+        "requires_human_approval": (
+            str(policy["recommended_action"])
+            in {
+                "MANUAL_REVIEW",
+                "RECOMMEND_REFUND",
+            }
+        ),
+        "action_executed": False,
+        "disclosure": (
+            "TreeSHAP explains the raw model output. "
+            "The displayed probability is calibrated. "
+            "No financial action is executed automatically."
+        ),
+    }
+
+@app.get(
+    "/api/transactions/{payment_id}/lifecycle"
+)
+def get_transaction_lifecycle(
+    payment_id: str,
+    as_of: datetime | None = None,
+):
+    try:
+        operations = load_operation_data()
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        ) from error
+
+    row = operations[
+        operations["payment_id"] == payment_id
+    ]
+
+    if row.empty:
+        raise HTTPException(
+            status_code=404,
+            detail="Operational record not found.",
+        )
+
+    operation = dataframe_records(row.head(1))[0]
+    evaluated_at = as_of or operation["observation_at"]
+
+    rule_result = evaluate_post_payment_rules(
+        operation,
+        as_of=evaluated_at,
+    )
+
+    return {
+        "payment_id": payment_id,
+        "lifecycle": operation,
+        "rule_result": rule_result,
+        "requires_human_approval": rule_result[
+            "requires_human_approval"
+        ],
+        "action_executed": False,
+        "disclosure": (
+            "Lifecycle rules use only events visible at the "
+            "requested as_of time. No action is executed."
+        ),
+    }
 
 @app.post("/api/score")
 def score_payment(request: PaymentScoreRequest):
@@ -456,6 +638,31 @@ def score_payment(request: PaymentScoreRequest):
             "is_weekend": int(day_of_week >= 5),
         }
     )
+
+    # Run deterministic capture-time rules.
+    rule_result = evaluate_rules(request_data)
+    try:
+        explanation = {
+            "available": True,
+            **explain_payment(
+                request_data,
+                top_n=6,
+            ),
+        }
+    except Exception:
+        logger.exception(
+            "SHAP explanation generation failed."
+        )
+
+        explanation = {
+            "available": False,
+            "method": "TreeSHAP",
+            "top_factors": [],
+            "reason": (
+                "Explanation temporarily unavailable. "
+                "The risk score is still valid."
+            ),
+        }
 
     model_features = model_bundle["model_features"]
 
@@ -488,7 +695,26 @@ def score_payment(request: PaymentScoreRequest):
     )[0]
 
     selected_index = int(np.argmin(expected_costs))
-    recommended_action = ACTIONS[selected_index]
+
+    model_recommended_action = ACTIONS[
+        selected_index
+    ]
+
+    hard_override_action = rule_result[
+        "hard_override_action"
+    ]
+
+    # Only clear merchant errors can override the model.
+    # Every financial action still requires human approval.
+    recommended_action = (
+        hard_override_action
+        or model_recommended_action
+    )
+
+    if hard_override_action is not None:
+        decision_source = "MERCHANT_ERROR_RULE"
+    else:
+        decision_source = "COST_OPTIMIZED_MODEL"
 
     if probability < 0.01:
         risk_band = "LOW"
@@ -504,83 +730,45 @@ def score_payment(request: PaymentScoreRequest):
         for index, action in enumerate(ACTIONS)
     }
 
+    requires_human_approval = (
+        recommended_action
+        in {
+            "MANUAL_REVIEW",
+            "RECOMMEND_REFUND",
+        }
+    )
+
     return {
-        "raw_probability": float(raw_probability[0]),
+        "raw_probability": float(
+            raw_probability[0]
+        ),
         "calibrated_probability": probability,
-        "risk_percentage": round(probability * 100, 3),
-        "risk_band": risk_band,
+        "risk_percentage": round(
+            probability * 100,
+            3,
+        ),
+        "model_recommended_action": model_recommended_action,
         "recommended_action": recommended_action,
+        "decision_source": decision_source,
+        "rules": rule_result,
+        "risk_band": risk_band,
+        "explanation": explanation,
         "expected_costs_rupees": cost_breakdown,
-        "model_version": model_bundle["model_version"],
-        "calibration_method": calibrator_bundle["method"],
+        "model_version": model_bundle[
+            "model_version"
+        ],
+        "calibration_method": calibrator_bundle[
+            "method"
+        ],
         "requires_human_approval": (
-            recommended_action == "RECOMMEND_REFUND"
+            requires_human_approval
         ),
+        "action_executed": False,
         "disclosure": (
-            "Prediction produced by a model trained on "
-            "synthetic data. It is a decision-support signal, "
-            "not an automatic financial action."
+            "Prediction produced using a calibrated model "
+            "and deterministic capture-time rules. The model "
+            "was trained on synthetic data. Recommendations "
+            "are decision-support signals and no financial "
+            "action is executed automatically."
         ),
     }
-
-
-@app.get("/api/transactions")
-def list_transactions(
-    limit: int = 25,
-    action: str | None = None,
-):
-    """Return the highest-risk held-out transactions."""
-
-    limit = max(1, min(limit, 200))
-    transactions = load_default_policy_data().copy()
-
-    if action:
-        action = action.upper()
-
-        if action not in ACTIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid action. Choose one of: {', '.join(ACTIONS)}",
-            )
-
-        transactions = transactions[
-            transactions["recommended_action"] == action
-        ]
-
-    transactions = transactions.sort_values(
-        "calibrated_probability",
-        ascending=False,
-    ).head(limit)
-
-    columns = [
-        "payment_id",
-        "customer_id",
-        "created_at",
-        "amount_paise",
-        "calibrated_probability",
-        "recommended_action",
-        "target",
-    ]
-
-    return {
-        "count": len(transactions),
-        "items": dataframe_records(transactions[columns]),
-    }
-
-
-@app.get("/api/transactions/{payment_id}")
-def get_transaction(payment_id: str):
-    """Return one transaction and its policy decision."""
-
-    transactions = load_default_policy_data()
-    transaction = transactions[
-        transactions["payment_id"] == payment_id
-    ]
-
-    if transaction.empty:
-        raise HTTPException(
-            status_code=404,
-            detail="Transaction not found",
-        )
-
-    return dataframe_records(transaction)[0]

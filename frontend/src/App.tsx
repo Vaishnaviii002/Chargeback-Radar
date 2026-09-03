@@ -9,11 +9,9 @@ import {
 } from "lucide-react";
 import TransactionQueue from "./components/TransactionQueue";
 import PolicySimulator from "./components/PolicySimulator";
-import {
-  fetchMetrics,
-  type MetricsResponse,
-} from "./api";
-
+import PolicyFrontier from "./components/PolicyFrontier";
+import { fetchMetrics, type MetricsResponse } from "./api";
+import EffectivenessSensitivity from "./components/EffectivenessSensitivity";
 import "./App.css";
 
 const ACTIONS = [
@@ -60,8 +58,7 @@ function formatRupees(value: number) {
 }
 
 function App() {
-  const [metrics, setMetrics] =
-    useState<MetricsResponse | null>(null);
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,10 +102,7 @@ function App() {
         <h1>Backend connection failed</h1>
         <p>{error}</p>
 
-        <button
-          className="primary-button"
-          onClick={() => void loadMetrics()}
-        >
+        <button className="primary-button" onClick={() => void loadMetrics()}>
           <RefreshCw size={16} />
           Try again
         </button>
@@ -132,10 +126,7 @@ function App() {
     },
     {
       label: "Average precision",
-      value: formatPercent(
-        performance.average_precision,
-        2,
-      ),
+      value: formatPercent(performance.average_precision, 2),
       detail: `${formatPercent(
         evaluation.dataset.base_rate,
         2,
@@ -156,24 +147,18 @@ function App() {
     },
     {
       label: "False-positive cost",
-      value: formatRupees(
-        evaluation.false_positive_cost.total_rupees,
-      ),
+      value: formatRupees(evaluation.false_positive_cost.total_rupees),
       detail: `${formatNumber(
-        evaluation.false_positive_cost
-          .false_positive_count,
+        evaluation.false_positive_cost.false_positive_count,
       )} unnecessary reviews`,
       icon: IndianRupee,
     },
     {
       label: "Estimated net benefit",
-      value: formatRupees(
-        policy.costs.estimated_net_benefit_rupees,
-      ),
+      value: formatRupees(policy.costs.estimated_net_benefit_rupees),
       detail: "Under displayed assumptions",
       icon: IndianRupee,
-      positive:
-        policy.costs.estimated_net_benefit_rupees >= 0,
+      positive: policy.costs.estimated_net_benefit_rupees >= 0,
     },
   ];
 
@@ -200,15 +185,13 @@ function App() {
       <main className="dashboard">
         <section className="page-heading">
           <div>
-            <p className="eyebrow">
-              Razorpay AI Buildathon · Track 02
-            </p>
+            <p className="eyebrow">Razorpay AI Buildathon · Track 02</p>
 
             <h1>Risk command center</h1>
 
             <p className="heading-copy">
-              Detect likely card chargebacks and choose the
-              lowest-cost defensive action.
+              Detect likely card chargebacks and choose the lowest-cost
+              defensive action.
             </p>
           </div>
 
@@ -226,10 +209,7 @@ function App() {
             const Icon = card.icon;
 
             return (
-              <article
-                className="metric-card"
-                key={card.label}
-              >
+              <article className="metric-card" key={card.label}>
                 <div className="metric-label">
                   <span>{card.label}</span>
                   <Icon size={17} />
@@ -237,17 +217,13 @@ function App() {
 
                 <strong
                   className={
-                    card.positive
-                      ? "metric-value positive"
-                      : "metric-value"
+                    card.positive ? "metric-value positive" : "metric-value"
                   }
                 >
                   {card.value}
                 </strong>
 
-                <span className="metric-detail">
-                  {card.detail}
-                </span>
+                <span className="metric-detail">{card.detail}</span>
               </article>
             );
           })}
@@ -258,22 +234,17 @@ function App() {
             <div className="panel-heading">
               <div>
                 <h2>Default policy allocation</h2>
-                <p>
-                  Recommended actions across the held-out
-                  test population.
-                </p>
+                <p>Recommended actions across the held-out test population.</p>
               </div>
 
               <span className="panel-stat">
-                {formatPercent(policy.intervention_rate)}
-                {" "}intervened
+                {formatPercent(policy.intervention_rate)} intervened
               </span>
             </div>
 
             <div className="action-list">
               {ACTIONS.map((action) => {
-                const count =
-                  policy.action_mix[action.key] ?? 0;
+                const count = policy.action_mix[action.key] ?? 0;
 
                 const share =
                   policy.records_evaluated > 0
@@ -281,10 +252,7 @@ function App() {
                     : 0;
 
                 return (
-                  <div
-                    className="action-row"
-                    key={action.key}
-                  >
+                  <div className="action-row" key={action.key}>
                     <div className="action-meta">
                       <span>
                         <i
@@ -297,9 +265,7 @@ function App() {
 
                       <strong>
                         {formatNumber(count)}
-                        <small>
-                          {formatPercent(share)}
-                        </small>
+                        <small>{formatPercent(share)}</small>
                       </strong>
                     </div>
 
@@ -325,43 +291,32 @@ function App() {
             <div className="panel-heading">
               <div>
                 <h2>Held-out confusion matrix</h2>
-                <p>
-                  Exact outcomes at the fixed operating
-                  threshold.
-                </p>
+                <p>Exact outcomes at the fixed operating threshold.</p>
               </div>
             </div>
 
             <div className="confusion-grid">
               <div className="confusion-cell correct">
                 <span>True positive</span>
-                <strong>
-                  {formatNumber(confusion.true_positive)}
-                </strong>
+                <strong>{formatNumber(confusion.true_positive)}</strong>
                 <small>Correctly flagged</small>
               </div>
 
               <div className="confusion-cell warning">
                 <span>False positive</span>
-                <strong>
-                  {formatNumber(confusion.false_positive)}
-                </strong>
+                <strong>{formatNumber(confusion.false_positive)}</strong>
                 <small>Unnecessary review</small>
               </div>
 
               <div className="confusion-cell danger">
                 <span>False negative</span>
-                <strong>
-                  {formatNumber(confusion.false_negative)}
-                </strong>
+                <strong>{formatNumber(confusion.false_negative)}</strong>
                 <small>Chargeback missed</small>
               </div>
 
               <div className="confusion-cell neutral">
                 <span>True negative</span>
-                <strong>
-                  {formatNumber(confusion.true_negative)}
-                </strong>
+                <strong>{formatNumber(confusion.true_negative)}</strong>
                 <small>Correctly monitored</small>
               </div>
             </div>
@@ -374,14 +329,15 @@ function App() {
           <div>
             <strong>Honest evaluation</strong>
             <span>
-              {evaluation.disclosures.split}. Probabilities
-              calibrated using{" "}
+              {evaluation.disclosures.split}. Probabilities calibrated using{" "}
               {metrics.calibration.selected_method}.{" "}
               {evaluation.disclosures.money_note}
             </span>
           </div>
         </section>
         <PolicySimulator />
+        <EffectivenessSensitivity />
+        <PolicyFrontier />
         <TransactionQueue />
       </main>
     </div>

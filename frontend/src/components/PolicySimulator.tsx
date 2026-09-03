@@ -21,15 +21,18 @@ type SimulationResult = {
   intervention_rate: number;
   precision: number;
   recall: number;
-  false_positive_cost?: number;
-  estimated_net_benefit?: number;
-  net_benefit?: number;
   action_mix: Record<string, number>;
   confusion_matrix: {
     true_positive: number;
     false_positive: number;
     false_negative: number;
     true_negative: number;
+  };
+  costs: {
+    do_nothing_baseline_rupees: number;
+    policy_cost_rupees: number;
+    false_positive_cost_rupees: number;
+    estimated_net_benefit_rupees: number;
   };
 };
 
@@ -43,6 +46,13 @@ const defaults: Parameters = {
   review_prevention_rate: 0.65,
   refund_cost_rate: 0.35,
   risk_program_penalty: 800,
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  MONITOR: "Monitor",
+  PREPARE_EVIDENCE: "Prepare evidence",
+  MANUAL_REVIEW: "Manual review",
+  RECOMMEND_REFUND: "Recommend refund",
 };
 
 function formatPercent(value: number) {
@@ -104,7 +114,7 @@ export default function PolicySimulator() {
   }
 
   const netBenefit =
-    result?.estimated_net_benefit ?? result?.net_benefit;
+    result?.costs.estimated_net_benefit_rupees;
 
   return (
     <section className="simulator-panel">
@@ -298,6 +308,34 @@ export default function PolicySimulator() {
                 <small>Known chargebacks covered</small>
               </div>
 
+              <div className="result-card result-warning">
+                <span>False-positive interventions</span>
+                <strong>
+                  {result.confusion_matrix.false_positive.toLocaleString(
+                    "en-IN",
+                  )}
+                </strong>
+                <small>
+                  {formatMoney(
+                    result.costs.false_positive_cost_rupees,
+                  )}{" "}
+                  estimated cost
+                </small>
+              </div>
+
+              <div className="result-card">
+                <span>Policy cost</span>
+                <strong>
+                  {formatMoney(result.costs.policy_cost_rupees)}
+                </strong>
+                <small>
+                  {formatMoney(
+                    result.costs.do_nothing_baseline_rupees,
+                  )}{" "}
+                  do-nothing baseline
+                </small>
+              </div>
+
               {netBenefit !== undefined && (
                 <div className="result-card result-benefit">
                   <span>Estimated net benefit</span>
@@ -305,13 +343,40 @@ export default function PolicySimulator() {
                   <small>Synthetic held-out backtest</small>
                 </div>
               )}
+
+              <div className="simulation-action-mix">
+                <div className="simulation-action-heading">
+                  <strong>Recalculated action mix</strong>
+                  <span>
+                    Lowest expected-cost action under these
+                    assumptions
+                  </span>
+                </div>
+
+                <div className="simulation-action-grid">
+                  {Object.entries(result.action_mix).map(
+                    ([action, count]) => (
+                      <div key={action}>
+                        <span>
+                          {ACTION_LABELS[action] || action}
+                        </span>
+                        <strong>
+                          {count.toLocaleString("en-IN")}
+                        </strong>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
 
       <p className="simulation-disclosure">
-        Results are estimates from synthetic held-out data. They are not
+        Policy precision and recall count every non-monitor action as an
+        intervention; they are different from the fixed-threshold detector
+        metrics above. Results use synthetic held-out data and are not
         guaranteed financial outcomes.
       </p>
     </section>

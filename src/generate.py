@@ -11,6 +11,27 @@ N_PAYMENTS = 80_000
 START_DATE = pd.Timestamp("2025-01-01", tz="UTC")
 END_DATE = pd.Timestamp("2026-01-01", tz="UTC")
 
+COHORT_WINDOWS = {
+    "train": (
+        pd.Timestamp("2025-01-01", tz="UTC"),
+        pd.Timestamp("2025-10-01", tz="UTC"),
+    ),
+    "calibration": (
+        pd.Timestamp("2025-10-01", tz="UTC"),
+        pd.Timestamp("2025-11-01", tz="UTC"),
+    ),
+    "test": (
+        pd.Timestamp("2025-11-01", tz="UTC"),
+        pd.Timestamp("2026-01-01", tz="UTC"),
+    ),
+}
+
+COHORT_SHARES = {
+    "train": 0.75,
+    "calibration": 0.10,
+    "test": 0.15,
+}
+
 DATA_DIR = Path("data")
 
 ARCHETYPE_SHARES = {
@@ -79,6 +100,12 @@ def generate_customers(rng: np.random.Generator) -> pd.DataFrame:
         p=archetype_probabilities,
     )
 
+    evaluation_cohorts = rng.choice(
+        list(COHORT_SHARES),
+        size=N_CUSTOMERS,
+        p=list(COHORT_SHARES.values()),
+    )
+
     account_age_at_start = np.zeros(N_CUSTOMERS, dtype=int)
 
     for archetype in archetype_names:
@@ -105,6 +132,7 @@ def generate_customers(rng: np.random.Generator) -> pd.DataFrame:
                 for index in range(N_CUSTOMERS)
             ],
             "archetype": archetypes,
+            "evaluation_cohort": evaluation_cohorts,
             "account_created_at": account_created_at,
             "phone_verified": rng.random(N_CUSTOMERS) > 0.05,
             "email_verified": rng.random(N_CUSTOMERS) > 0.03,
@@ -141,17 +169,35 @@ def generate_payments(
         drop=True
     )
 
-    period_seconds = int((END_DATE - START_DATE).total_seconds())
-    random_seconds = rng.integers(
-        0,
-        period_seconds,
-        size=N_PAYMENTS,
+    evaluation_cohorts = selected_customers[
+        "evaluation_cohort"
+    ].to_numpy()
+
+    created_at = pd.Series(
+        pd.NaT,
+        index=range(N_PAYMENTS),
+        dtype="datetime64[ns, UTC]",
     )
 
-    created_at = START_DATE + pd.to_timedelta(
-        random_seconds,
-        unit="s",
-    )
+    for cohort, (window_start, window_end) in (
+        COHORT_WINDOWS.items()
+    ):
+        cohort_mask = evaluation_cohorts == cohort
+        window_seconds = int(
+            (window_end - window_start).total_seconds()
+        )
+        random_seconds = rng.integers(
+            0,
+            window_seconds,
+            size=int(cohort_mask.sum()),
+        )
+        created_at.loc[cohort_mask] = (
+            window_start
+            + pd.to_timedelta(random_seconds, unit="s")
+        )
+
+    if created_at.isna().any():
+        raise ValueError("Some payments were not assigned a timestamp.")
 
     archetypes = selected_customers["archetype"].to_numpy()
 
@@ -285,6 +331,7 @@ def generate_payments(
         {
             "customer_id": selected_customers["customer_id"],
             "archetype": archetypes,
+            "evaluation_cohort": evaluation_cohorts,
             "account_created_at": selected_customers[
                 "account_created_at"
             ],

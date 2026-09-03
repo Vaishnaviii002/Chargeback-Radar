@@ -45,6 +45,38 @@ def make_time_splits(
     if not calibration_end < test_start:
         raise ValueError("Calibration and test periods overlap.")
 
+    customer_sets = {
+        "train": set(train["customer_id"]),
+        "calibration": set(calibration["customer_id"]),
+        "test": set(test["customer_id"]),
+    }
+
+    overlaps = {
+        "train_calibration": (
+            customer_sets["train"]
+            & customer_sets["calibration"]
+        ),
+        "train_test": (
+            customer_sets["train"]
+            & customer_sets["test"]
+        ),
+        "calibration_test": (
+            customer_sets["calibration"]
+            & customer_sets["test"]
+        ),
+    }
+
+    overlapping_counts = {
+        name: len(customers)
+        for name, customers in overlaps.items()
+    }
+
+    if any(overlapping_counts.values()):
+        raise ValueError(
+            "Customer leakage detected across time splits: "
+            f"{overlapping_counts}. Regenerate the dataset."
+        )
+
     return train, calibration, test
 
 
@@ -178,30 +210,6 @@ def train_model() -> None:
     calibration_baseline = y_calibration.mean()
     test_baseline = y_test.mean()
 
-    seen_customers = set(train["customer_id"]) | set(
-        calibration["customer_id"]
-    )
-
-    unseen_customer_mask = ~test["customer_id"].isin(
-        seen_customers
-    )
-
-    unseen_test = test.loc[unseen_customer_mask]
-    unseen_probability = test_probability[
-        unseen_customer_mask.to_numpy()
-    ]
-
-    unseen_ap = None
-
-    if (
-        len(unseen_test) > 0
-        and unseen_test[target].nunique() == 2
-    ):
-        unseen_ap = average_precision_score(
-            unseen_test[target],
-            unseen_probability,
-        )
-
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -275,8 +283,16 @@ def train_model() -> None:
         "calibration_average_precision": calibration_ap,
         "test_base_rate": test_baseline,
         "test_average_precision": test_ap,
-        "unseen_customer_test_rows": len(unseen_test),
-        "unseen_customer_average_precision": unseen_ap,
+        "customer_disjoint": True,
+        "training_unique_customers": int(
+            train["customer_id"].nunique()
+        ),
+        "calibration_unique_customers": int(
+            calibration["customer_id"].nunique()
+        ),
+        "test_unique_customers": int(
+            test["customer_id"].nunique()
+        ),
     }
 
     with open(
@@ -303,15 +319,9 @@ def train_model() -> None:
     print(f"Base-rate baseline:     {test_baseline:.4f}")
     print(f"Average Precision:      {test_ap:.4f}")
 
-    if unseen_ap is not None:
-        print("\nUnseen-customer stress test:")
-        print(f"Rows:                   {len(unseen_test):,}")
-        print(f"Average Precision:      {unseen_ap:.4f}")
-    else:
-        print(
-            "\nUnseen-customer stress test could not be "
-            "calculated because both labels were not present."
-        )
+    print("\nLeakage controls:")
+    print("Time-based split:       verified")
+    print("Customer-disjoint:      verified")
 
     print("\nFiles created successfully:")
     print("  artifacts/model_bundle.joblib")

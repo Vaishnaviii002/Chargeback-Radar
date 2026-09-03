@@ -43,6 +43,33 @@ def test_all_twelve_months_are_present():
     assert months == list(range(1, 13))
 
 
+def test_time_splits_are_customer_disjoint():
+    payments, _ = load_data()
+
+    train_customers = set(
+        payments.loc[
+            payments["month_index"] <= 9,
+            "customer_id",
+        ]
+    )
+    calibration_customers = set(
+        payments.loc[
+            payments["month_index"] == 10,
+            "customer_id",
+        ]
+    )
+    test_customers = set(
+        payments.loc[
+            payments["month_index"] >= 11,
+            "customer_id",
+        ]
+    )
+
+    assert train_customers.isdisjoint(calibration_customers)
+    assert train_customers.isdisjoint(test_customers)
+    assert calibration_customers.isdisjoint(test_customers)
+
+
 def test_public_data_does_not_expose_archetype():
     payments, _ = load_data()
 

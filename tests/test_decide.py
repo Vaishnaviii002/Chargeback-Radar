@@ -163,3 +163,39 @@ def test_net_benefit_calculation_is_consistent():
         costs["estimated_net_benefit_rupees"],
         expected_net_benefit,
     )
+
+
+def test_policy_cost_has_explicit_components():
+    results, scored_data = simulate_policy(
+        make_test_data(),
+        CostParams(),
+    )
+
+    costs = results["costs"]
+
+    assert np.isclose(
+        costs["policy_cost_rupees"],
+        costs["remaining_chargeback_loss_rupees"]
+        + costs["intervention_cost_rupees"],
+    )
+
+    assert np.isclose(
+        scored_data["realised_policy_cost"],
+        scored_data["residual_chargeback_loss"]
+        + scored_data["intervention_cost"],
+    ).all()
+
+
+def test_net_benefit_equals_avoided_loss_minus_intervention_cost():
+    results, _ = simulate_policy(
+        make_test_data(),
+        CostParams(),
+    )
+
+    costs = results["costs"]
+
+    assert np.isclose(
+        costs["estimated_net_benefit_rupees"],
+        costs["gross_avoided_loss_rupees"]
+        - costs["intervention_cost_rupees"],
+    )

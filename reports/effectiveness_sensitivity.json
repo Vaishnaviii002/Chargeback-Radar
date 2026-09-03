@@ -1,0 +1,118 @@
+{
+  "records_evaluated": 12173,
+  "scenario_order": [
+    "LOW",
+    "BASE",
+    "HIGH"
+  ],
+  "base_parameters": {
+    "chargeback_fee": 1500.0,
+    "gross_margin_rate": 0.35,
+    "evidence_cost": 40.0,
+    "manual_review_cost": 150.0,
+    "customer_friction_rate": 0.08,
+    "evidence_recovery_rate": 0.45,
+    "review_prevention_rate": 0.65,
+    "refund_cost_rate": 0.35,
+    "risk_program_penalty": 800.0
+  },
+  "scenarios": [
+    {
+      "scenario": "LOW",
+      "assumptions": {
+        "evidence_recovery_rate": 0.25,
+        "review_prevention_rate": 0.45
+      },
+      "intervention_count": 311,
+      "intervention_rate": 0.02554834469728087,
+      "precision": 0.17363344051446947,
+      "recall": 0.6206896551724138,
+      "action_mix": {
+        "MONITOR": 11862,
+        "PREPARE_EVIDENCE": 49,
+        "MANUAL_REVIEW": 143,
+        "RECOMMEND_REFUND": 119
+      },
+      "costs": {
+        "do_nothing_baseline_rupees": 456006.47,
+        "remaining_chargeback_loss_rupees": 285001.1655,
+        "gross_avoided_loss_rupees": 171005.30449999997,
+        "intervention_cost_rupees": 78200.11383999999,
+        "policy_cost_rupees": 363201.27934,
+        "false_positive_cost_rupees": 65119.72034,
+        "estimated_net_benefit_rupees": 92805.19065999996
+      }
+    },
+    {
+      "scenario": "BASE",
+      "assumptions": {
+        "evidence_recovery_rate": 0.45,
+        "review_prevention_rate": 0.65
+      },
+      "intervention_count": 364,
+      "intervention_rate": 0.029902242668200116,
+      "precision": 0.1620879120879121,
+      "recall": 0.6781609195402298,
+      "action_mix": {
+        "MONITOR": 11809,
+        "PREPARE_EVIDENCE": 102,
+        "MANUAL_REVIEW": 198,
+        "RECOMMEND_REFUND": 64
+      },
+      "costs": {
+        "do_nothing_baseline_rupees": 456006.47,
+        "remaining_chargeback_loss_rupees": 253756.7015,
+        "gross_avoided_loss_rupees": 202249.76849999998,
+        "intervention_cost_rupees": 65381.682,
+        "policy_cost_rupees": 319138.3835,
+        "false_positive_cost_rupees": 55800.9015,
+        "estimated_net_benefit_rupees": 136868.08649999998
+      }
+    },
+    {
+      "scenario": "HIGH",
+      "assumptions": {
+        "evidence_recovery_rate": 0.65,
+        "review_prevention_rate": 0.8
+      },
+      "intervention_count": 442,
+      "intervention_rate": 0.03630986609710014,
+      "precision": 0.13800904977375567,
+      "recall": 0.7011494252873564,
+      "action_mix": {
+        "MONITOR": 11731,
+        "PREPARE_EVIDENCE": 180,
+        "MANUAL_REVIEW": 232,
+        "RECOMMEND_REFUND": 30
+      },
+      "costs": {
+        "do_nothing_baseline_rupees": 456006.47,
+        "remaining_chargeback_loss_rupees": 214954.194,
+        "gross_avoided_loss_rupees": 241052.27599999998,
+        "intervention_cost_rupees": 63636.57118,
+        "policy_cost_rupees": 278590.76518,
+        "false_positive_cost_rupees": 55349.93568,
+        "estimated_net_benefit_rupees": 177415.70481999998
+      }
+    }
+  ],
+  "ranges": {
+    "estimated_net_benefit_rupees": {
+      "minimum": 92805.19065999996,
+      "maximum": 177415.70481999998
+    },
+    "gross_avoided_loss_rupees": {
+      "minimum": 171005.30449999997,
+      "maximum": 241052.27599999998
+    },
+    "recall": {
+      "minimum": 0.6206896551724138,
+      "maximum": 0.7011494252873564
+    },
+    "intervention_rate": {
+      "minimum": 0.02554834469728087,
+      "maximum": 0.03630986609710014
+    }
+  },
+  "disclosure": "LOW, BASE, and HIGH are assumption scenarios, not confidence intervals. Evidence recovery and manual-review prevention rates vary while all other costs remain fixed. All results use the same held-out synthetic test set."
+}

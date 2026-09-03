@@ -357,7 +357,8 @@ def evaluate_model() -> None:
             "synthetic_data": True,
             "split": (
                 "Train months 1-9, calibration month 10, "
-                "held-out test months 11-12"
+                "held-out test months 11-12; customer IDs "
+                "are disjoint across all three splits"
             ),
             "money_note": (
                 "Exposure and false-positive costs are "

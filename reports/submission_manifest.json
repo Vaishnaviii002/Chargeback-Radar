@@ -1,0 +1,680 @@
+{
+  "schema_version": "1.0",
+  "project": "Chargeback Radar",
+  "submission_track": "Razorpay AI Buildathon Track 02",
+  "generated_at_utc": "2026-09-03T17:49:30.442963+00:00",
+  "reproducibility": {
+    "python_version": "3.14.7",
+    "command": "python -m src.pipeline",
+    "source": {
+      "commit": "b709f0773f0d15097443276758cc1fbb13a5ff91",
+      "working_tree_dirty": true
+    },
+    "steps": [
+      {
+        "name": "Generate customers and payments",
+        "module": "src.generate",
+        "status": "completed",
+        "duration_seconds": 1.159
+      },
+      {
+        "name": "Generate delayed chargeback outcomes",
+        "module": "src.outcomes",
+        "status": "completed",
+        "duration_seconds": 1.005
+      },
+      {
+        "name": "Generate post-payment operations",
+        "module": "src.operations",
+        "status": "completed",
+        "duration_seconds": 0.914
+      },
+      {
+        "name": "Build leakage-safe features",
+        "module": "src.features",
+        "status": "completed",
+        "duration_seconds": 2.469
+      },
+      {
+        "name": "Train customer-disjoint model",
+        "module": "src.train",
+        "status": "completed",
+        "duration_seconds": 2.801
+      },
+      {
+        "name": "Calibrate probabilities",
+        "module": "src.calibrate",
+        "status": "completed",
+        "duration_seconds": 2.51
+      },
+      {
+        "name": "Evaluate untouched test set",
+        "module": "src.evaluate",
+        "status": "completed",
+        "duration_seconds": 1.814
+      },
+      {
+        "name": "Backtest default policy",
+        "module": "src.decide",
+        "status": "completed",
+        "duration_seconds": 1.663
+      },
+      {
+        "name": "Build review-cost frontier",
+        "module": "src.policy_lab",
+        "status": "completed",
+        "duration_seconds": 2.057
+      },
+      {
+        "name": "Build effectiveness sensitivity",
+        "module": "src.effectiveness_sensitivity",
+        "status": "completed",
+        "duration_seconds": 1.937
+      }
+    ]
+  },
+  "dataset": {
+    "synthetic": true,
+    "payments": 80000,
+    "unique_payment_ids": 80000,
+    "chargebacks": 578,
+    "chargeback_rate": 0.007225,
+    "operational_rows": 80000,
+    "shipment_sla_breaches": 3739,
+    "refund_requests": 2763,
+    "refund_sla_breaches": 371
+  },
+  "evaluation_integrity": {
+    "split": "Train months 1-9, calibration month 10, held-out test months 11-12; customer IDs are disjoint across all three splits",
+    "customer_disjoint": true,
+    "target": "chargeback_within_120d",
+    "model_features": [
+      "card_network",
+      "product_category",
+      "cvv_result",
+      "threeds_status",
+      "amount_paise",
+      "hour_of_day",
+      "day_of_week",
+      "is_weekend",
+      "is_digital_good",
+      "descriptor_clarity_score",
+      "phone_verified",
+      "email_verified",
+      "account_age_days",
+      "has_prior_order",
+      "total_prior_orders",
+      "prior_disputes_count",
+      "days_since_last_order",
+      "txns_last_1h",
+      "txns_last_24h",
+      "txns_last_7d",
+      "amount_last_24h_paise",
+      "device_is_new",
+      "ip_country_matches_billing",
+      "ip_is_proxy_or_vpn",
+      "threeds_liability_shift",
+      "billing_shipping_distance_km"
+    ],
+    "excluded_rule_fields": [
+      "is_duplicate_payment",
+      "cancelled_subscription_billed"
+    ]
+  },
+  "held_out_evaluation": {
+    "dataset": {
+      "test_rows": 12173,
+      "positive_labels": 87,
+      "base_rate": 0.007146964593773104
+    },
+    "operating_policy": {
+      "review_capacity": 0.02,
+      "operating_threshold": 0.16013071895424835,
+      "flagged_count": 262,
+      "flagged_rate": 0.021523042799638546
+    },
+    "model_performance": {
+      "average_precision": 0.1492642172195245,
+      "precision": 0.1946564885496183,
+      "recall": 0.5862068965517241,
+      "f1": 0.2922636103151863,
+      "precision_at_1_percent": 0.18032786885245902,
+      "precision_at_5_percent": 0.1116584564860427,
+      "expected_calibration_error": 0.001502145365291251
+    },
+    "confusion_matrix": {
+      "true_negative": 11875,
+      "false_positive": 211,
+      "false_negative": 36,
+      "true_positive": 51
+    },
+    "false_positive_cost": {
+      "manual_review_cost_per_case": 150.0,
+      "false_positive_count": 211,
+      "total_rupees": 31650.0
+    },
+    "exposure": {
+      "assumed_chargeback_fee_rupees": 1500.0,
+      "detected_chargeback_exposure_rupees": 208589.96999999997,
+      "missed_chargeback_exposure_rupees": 177816.5
+    },
+    "disclosures": {
+      "synthetic_data": true,
+      "split": "Train months 1-9, calibration month 10, held-out test months 11-12; customer IDs are disjoint across all three splits",
+      "money_note": "Exposure and false-positive costs are backtested estimates using declared assumptions."
+    }
+  },
+  "calibration": {
+    "selected_method": "isotonic",
+    "sigmoid_selection_brier": 0.007169833076260316,
+    "isotonic_selection_brier": 0.007088171760857303,
+    "test_raw_brier": 0.015723488853586633,
+    "test_calibrated_brier": 0.0062581254145627025,
+    "test_raw_log_loss": 0.06376921007042137,
+    "test_calibrated_log_loss": 0.027511647180720057,
+    "test_raw_average_precision": 0.1519547555971648,
+    "test_calibrated_average_precision": 0.1492642172195245
+  },
+  "model": {
+    "model_version": "0.1.0",
+    "seed": 42,
+    "best_iteration": 1,
+    "training_rows": 59048,
+    "calibration_rows": 8779,
+    "test_rows": 12173,
+    "training_positives": 420,
+    "calibration_positives": 71,
+    "test_positives": 87,
+    "scale_pos_weight": 139.59047619047618,
+    "calibration_base_rate": 0.008087481489919125,
+    "calibration_average_precision": 0.12809877046748497,
+    "test_base_rate": 0.007146964593773104,
+    "test_average_precision": 0.1519547555971648,
+    "customer_disjoint": true,
+    "training_unique_customers": 12586,
+    "calibration_unique_customers": 1766,
+    "test_unique_customers": 2543
+  },
+  "default_policy": {
+    "parameters": {
+      "chargeback_fee": 1500.0,
+      "gross_margin_rate": 0.35,
+      "evidence_cost": 40.0,
+      "manual_review_cost": 150.0,
+      "customer_friction_rate": 0.08,
+      "evidence_recovery_rate": 0.45,
+      "review_prevention_rate": 0.65,
+      "refund_cost_rate": 0.35,
+      "risk_program_penalty": 800.0
+    },
+    "records_evaluated": 12173,
+    "action_mix": {
+      "MONITOR": 11809,
+      "PREPARE_EVIDENCE": 102,
+      "MANUAL_REVIEW": 198,
+      "RECOMMEND_REFUND": 64
+    },
+    "intervention_count": 364,
+    "intervention_rate": 0.029902242668200116,
+    "precision": 0.1620879120879121,
+    "recall": 0.6781609195402298,
+    "confusion_matrix": {
+      "true_negative": 11781,
+      "false_positive": 305,
+      "false_negative": 28,
+      "true_positive": 59
+    },
+    "costs": {
+      "do_nothing_baseline_rupees": 456006.47,
+      "remaining_chargeback_loss_rupees": 253756.7015,
+      "gross_avoided_loss_rupees": 202249.76849999998,
+      "intervention_cost_rupees": 65381.682,
+      "policy_cost_rupees": 319138.3835,
+      "false_positive_cost_rupees": 55800.9015,
+      "estimated_net_benefit_rupees": 136868.08649999998
+    },
+    "disclosure": "This is a held-out synthetic policy backtest. Net benefit depends on the displayed intervention effectiveness and cost assumptions."
+  },
+  "review_cost_frontier": {
+    "records_evaluated": 12173,
+    "variable": "manual_review_cost_rupees",
+    "base_parameters": {
+      "chargeback_fee": 1500.0,
+      "gross_margin_rate": 0.35,
+      "evidence_cost": 40.0,
+      "manual_review_cost": 150.0,
+      "customer_friction_rate": 0.08,
+      "evidence_recovery_rate": 0.45,
+      "review_prevention_rate": 0.65,
+      "refund_cost_rate": 0.35,
+      "risk_program_penalty": 800.0
+    },
+    "default_scenario": {
+      "manual_review_cost_rupees": 150.0,
+      "intervention_count": 364,
+      "intervention_rate": 0.029902242668200116,
+      "precision": 0.1620879120879121,
+      "recall": 0.6781609195402298,
+      "true_positive": 59,
+      "false_positive": 305,
+      "false_negative": 28,
+      "action_mix": {
+        "MONITOR": 11809,
+        "PREPARE_EVIDENCE": 102,
+        "MANUAL_REVIEW": 198,
+        "RECOMMEND_REFUND": 64
+      },
+      "policy_cost_rupees": 319138.3835,
+      "false_positive_cost_rupees": 55800.9015,
+      "estimated_net_benefit_rupees": 136868.08649999998,
+      "estimated_benefit_rate": 0.3001450538629419
+    },
+    "highest_estimated_benefit_scenario": {
+      "manual_review_cost_rupees": 0.0,
+      "intervention_count": 491,
+      "intervention_rate": 0.04033516799474246,
+      "precision": 0.13441955193482688,
+      "recall": 0.7586206896551724,
+      "true_positive": 66,
+      "false_positive": 425,
+      "false_negative": 21,
+      "action_mix": {
+        "MONITOR": 11682,
+        "PREPARE_EVIDENCE": 59,
+        "MANUAL_REVIEW": 423,
+        "RECOMMEND_REFUND": 9
+      },
+      "policy_cost_rupees": 268494.55096,
+      "false_positive_cost_rupees": 25832.500959999998,
+      "estimated_net_benefit_rupees": 187511.91903999995,
+      "estimated_benefit_rate": 0.4112045143570002
+    },
+    "points": [
+      {
+        "manual_review_cost_rupees": 0.0,
+        "intervention_count": 491,
+        "intervention_rate": 0.04033516799474246,
+        "precision": 0.13441955193482688,
+        "recall": 0.7586206896551724,
+        "true_positive": 66,
+        "false_positive": 425,
+        "false_negative": 21,
+        "action_mix": {
+          "MONITOR": 11682,
+          "PREPARE_EVIDENCE": 59,
+          "MANUAL_REVIEW": 423,
+          "RECOMMEND_REFUND": 9
+        },
+        "policy_cost_rupees": 268494.55096,
+        "false_positive_cost_rupees": 25832.500959999998,
+        "estimated_net_benefit_rupees": 187511.91903999995,
+        "estimated_benefit_rate": 0.4112045143570002
+      },
+      {
+        "manual_review_cost_rupees": 50.0,
+        "intervention_count": 394,
+        "intervention_rate": 0.032366713217777045,
+        "precision": 0.16243654822335024,
+        "recall": 0.735632183908046,
+        "true_positive": 64,
+        "false_positive": 330,
+        "false_negative": 23,
+        "action_mix": {
+          "MONITOR": 11779,
+          "PREPARE_EVIDENCE": 63,
+          "MANUAL_REVIEW": 310,
+          "RECOMMEND_REFUND": 21
+        },
+        "policy_cost_rupees": 284351.7432,
+        "false_positive_cost_rupees": 37178.66219999999,
+        "estimated_net_benefit_rupees": 171654.72679999995,
+        "estimated_benefit_rate": 0.3764304633660131
+      },
+      {
+        "manual_review_cost_rupees": 100.0,
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "true_positive": 59,
+        "false_positive": 305,
+        "false_negative": 28,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 102,
+          "MANUAL_REVIEW": 221,
+          "RECOMMEND_REFUND": 41
+        },
+        "policy_cost_rupees": 311288.39236,
+        "false_positive_cost_rupees": 44370.910359999994,
+        "estimated_net_benefit_rupees": 144718.07763999997,
+        "estimated_benefit_rate": 0.31735970246211637
+      },
+      {
+        "manual_review_cost_rupees": 150.0,
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "true_positive": 59,
+        "false_positive": 305,
+        "false_negative": 28,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 102,
+          "MANUAL_REVIEW": 198,
+          "RECOMMEND_REFUND": 64
+        },
+        "policy_cost_rupees": 319138.3835,
+        "false_positive_cost_rupees": 55800.9015,
+        "estimated_net_benefit_rupees": 136868.08649999998,
+        "estimated_benefit_rate": 0.3001450538629419
+      },
+      {
+        "manual_review_cost_rupees": 250.0,
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "true_positive": 59,
+        "false_positive": 305,
+        "false_negative": 28,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 102,
+          "MANUAL_REVIEW": 163,
+          "RECOMMEND_REFUND": 99
+        },
+        "policy_cost_rupees": 336527.90339999995,
+        "false_positive_cost_rupees": 75820.42139999999,
+        "estimated_net_benefit_rupees": 119478.56660000002,
+        "estimated_benefit_rate": 0.26201068287474083
+      },
+      {
+        "manual_review_cost_rupees": 400.0,
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "true_positive": 59,
+        "false_positive": 305,
+        "false_negative": 28,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 236,
+          "MANUAL_REVIEW": 3,
+          "RECOMMEND_REFUND": 125
+        },
+        "policy_cost_rupees": 345743.81562,
+        "false_positive_cost_rupees": 45407.05362,
+        "estimated_net_benefit_rupees": 110262.65437999996,
+        "estimated_benefit_rate": 0.2418006358111541
+      },
+      {
+        "manual_review_cost_rupees": 600.0,
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "true_positive": 59,
+        "false_positive": 305,
+        "false_negative": 28,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 238,
+          "MANUAL_REVIEW": 1,
+          "RECOMMEND_REFUND": 125
+        },
+        "policy_cost_rupees": 349659.50649999996,
+        "false_positive_cost_rupees": 44643.932499999995,
+        "estimated_net_benefit_rupees": 106346.96350000001,
+        "estimated_benefit_rate": 0.2332137162439823
+      },
+      {
+        "manual_review_cost_rupees": 1000.0,
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "true_positive": 59,
+        "false_positive": 305,
+        "false_negative": 28,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 239,
+          "MANUAL_REVIEW": 0,
+          "RECOMMEND_REFUND": 125
+        },
+        "policy_cost_rupees": 348019.8895,
+        "false_positive_cost_rupees": 43004.3155,
+        "estimated_net_benefit_rupees": 107986.58049999998,
+        "estimated_benefit_rate": 0.2368093165432499
+      }
+    ],
+    "disclosures": [
+      "All scenarios use the same untouched, customer-disjoint synthetic test population.",
+      "The highest-benefit scenario is sensitivity analysis, not a guaranteed recommendation.",
+      "Estimated benefit depends on the displayed cost and intervention-effectiveness assumptions."
+    ]
+  },
+  "effectiveness_sensitivity": {
+    "records_evaluated": 12173,
+    "scenario_order": [
+      "LOW",
+      "BASE",
+      "HIGH"
+    ],
+    "base_parameters": {
+      "chargeback_fee": 1500.0,
+      "gross_margin_rate": 0.35,
+      "evidence_cost": 40.0,
+      "manual_review_cost": 150.0,
+      "customer_friction_rate": 0.08,
+      "evidence_recovery_rate": 0.45,
+      "review_prevention_rate": 0.65,
+      "refund_cost_rate": 0.35,
+      "risk_program_penalty": 800.0
+    },
+    "scenarios": [
+      {
+        "scenario": "LOW",
+        "assumptions": {
+          "evidence_recovery_rate": 0.25,
+          "review_prevention_rate": 0.45
+        },
+        "intervention_count": 311,
+        "intervention_rate": 0.02554834469728087,
+        "precision": 0.17363344051446947,
+        "recall": 0.6206896551724138,
+        "action_mix": {
+          "MONITOR": 11862,
+          "PREPARE_EVIDENCE": 49,
+          "MANUAL_REVIEW": 143,
+          "RECOMMEND_REFUND": 119
+        },
+        "costs": {
+          "do_nothing_baseline_rupees": 456006.47,
+          "remaining_chargeback_loss_rupees": 285001.1655,
+          "gross_avoided_loss_rupees": 171005.30449999997,
+          "intervention_cost_rupees": 78200.11383999999,
+          "policy_cost_rupees": 363201.27934,
+          "false_positive_cost_rupees": 65119.72034,
+          "estimated_net_benefit_rupees": 92805.19065999996
+        }
+      },
+      {
+        "scenario": "BASE",
+        "assumptions": {
+          "evidence_recovery_rate": 0.45,
+          "review_prevention_rate": 0.65
+        },
+        "intervention_count": 364,
+        "intervention_rate": 0.029902242668200116,
+        "precision": 0.1620879120879121,
+        "recall": 0.6781609195402298,
+        "action_mix": {
+          "MONITOR": 11809,
+          "PREPARE_EVIDENCE": 102,
+          "MANUAL_REVIEW": 198,
+          "RECOMMEND_REFUND": 64
+        },
+        "costs": {
+          "do_nothing_baseline_rupees": 456006.47,
+          "remaining_chargeback_loss_rupees": 253756.7015,
+          "gross_avoided_loss_rupees": 202249.76849999998,
+          "intervention_cost_rupees": 65381.682,
+          "policy_cost_rupees": 319138.3835,
+          "false_positive_cost_rupees": 55800.9015,
+          "estimated_net_benefit_rupees": 136868.08649999998
+        }
+      },
+      {
+        "scenario": "HIGH",
+        "assumptions": {
+          "evidence_recovery_rate": 0.65,
+          "review_prevention_rate": 0.8
+        },
+        "intervention_count": 442,
+        "intervention_rate": 0.03630986609710014,
+        "precision": 0.13800904977375567,
+        "recall": 0.7011494252873564,
+        "action_mix": {
+          "MONITOR": 11731,
+          "PREPARE_EVIDENCE": 180,
+          "MANUAL_REVIEW": 232,
+          "RECOMMEND_REFUND": 30
+        },
+        "costs": {
+          "do_nothing_baseline_rupees": 456006.47,
+          "remaining_chargeback_loss_rupees": 214954.194,
+          "gross_avoided_loss_rupees": 241052.27599999998,
+          "intervention_cost_rupees": 63636.57118,
+          "policy_cost_rupees": 278590.76518,
+          "false_positive_cost_rupees": 55349.93568,
+          "estimated_net_benefit_rupees": 177415.70481999998
+        }
+      }
+    ],
+    "ranges": {
+      "estimated_net_benefit_rupees": {
+        "minimum": 92805.19065999996,
+        "maximum": 177415.70481999998
+      },
+      "gross_avoided_loss_rupees": {
+        "minimum": 171005.30449999997,
+        "maximum": 241052.27599999998
+      },
+      "recall": {
+        "minimum": 0.6206896551724138,
+        "maximum": 0.7011494252873564
+      },
+      "intervention_rate": {
+        "minimum": 0.02554834469728087,
+        "maximum": 0.03630986609710014
+      }
+    },
+    "disclosure": "LOW, BASE, and HIGH are assumption scenarios, not confidence intervals. Evidence recovery and manual-review prevention rates vary while all other costs remain fixed. All results use the same held-out synthetic test set."
+  },
+  "artifact_inventory": [
+    {
+      "path": "data/customers.parquet",
+      "bytes": 192806,
+      "sha256": "b5aed0615f4f0a6c01299ad4e8b942a55ef15be52c525f972f7f412cb840f754"
+    },
+    {
+      "path": "data/raw_payments.parquet",
+      "bytes": 2787603,
+      "sha256": "63b8865b30035c5a9a2829d769b09baecc93e30ac435cd53652ae1d13fa3dfc0"
+    },
+    {
+      "path": "data/payments.parquet",
+      "bytes": 2768544,
+      "sha256": "f6bd51b0eab1c8b38c04c253b4c7b323932bab767a3fbce5d05a57b26c8d09e1"
+    },
+    {
+      "path": "data/disputes.parquet",
+      "bytes": 40532,
+      "sha256": "12563a77be53251a5c6b458ad33e56571a434a0a1e6bb08b276e907e261fb123"
+    },
+    {
+      "path": "data/operations.parquet",
+      "bytes": 2268733,
+      "sha256": "030fdbf3365aaa4b065337d10ccbd747b9ae5e959309f5f97d5f27c8472381e5"
+    },
+    {
+      "path": "data/features.parquet",
+      "bytes": 4134442,
+      "sha256": "38f2e1bee5eba9e8a5fd920d08d12ece4f997e8e336980e256df02b238a02f2b"
+    },
+    {
+      "path": "artifacts/feature_schema.json",
+      "bytes": 1543,
+      "sha256": "7f58489c422af0ef2af19580965f91a0b84eeb0d2d421d0c0d33bd40f129c357"
+    },
+    {
+      "path": "artifacts/model_bundle.joblib",
+      "bytes": 17399,
+      "sha256": "81fbb893a6b800a5450ff37e0565c9b18debf8d5d1cfa874c7e02496e9e4be83"
+    },
+    {
+      "path": "artifacts/model_metadata.json",
+      "bytes": 623,
+      "sha256": "e489d76d9a7c6dd7db9290e588f4979bedea019af6ecd621839073ac188c2db4"
+    },
+    {
+      "path": "artifacts/calibrator.joblib",
+      "bytes": 778,
+      "sha256": "57d04da3c7997682e5019b363f063de69781582f40f9b479b70de3ff1bd37640"
+    },
+    {
+      "path": "reports/calibration_metrics.json",
+      "bytes": 447,
+      "sha256": "1d0a540c00403ff40ffd0f0b684fc73ef879dc1975d1333ace1a28b6612046b8"
+    },
+    {
+      "path": "reports/calibration_curve.json",
+      "bytes": 323,
+      "sha256": "88b609036d90ab304b4d3c7abcb7ca625d6400a94c5a8806f2b38d84f1423efd"
+    },
+    {
+      "path": "reports/metrics.json",
+      "bytes": 1399,
+      "sha256": "7ae1b35aecaba017380c4c6bbcbcecffbc31e525370f24e529b294679442b0ac"
+    },
+    {
+      "path": "reports/precision_recall_curve.json",
+      "bytes": 983,
+      "sha256": "976acc04e548509b072eaf887adebca1e74eef45d00c3f6d1d921c42f8f47b09"
+    },
+    {
+      "path": "reports/policy_default.json",
+      "bytes": 1292,
+      "sha256": "b936534431c4dd45879b95659e915fb44040648e7f0c615e69145c82020c40a9"
+    },
+    {
+      "path": "reports/policy_frontier.json",
+      "bytes": 7424,
+      "sha256": "732ad0818be3fd587fd39e5b18a4ac35bf7f4209ce4a5c2e53e56e997cb9ae25"
+    },
+    {
+      "path": "reports/effectiveness_sensitivity.json",
+      "bytes": 3791,
+      "sha256": "4cb082c3e2a9412bc1cd1324eab76b86251991a50a803d74a80dcc3900a20272"
+    },
+    {
+      "path": "reports/test_scored.parquet",
+      "bytes": 323296,
+      "sha256": "e035adc3c5c115b696a95916b5be85071e49e0a850095012254d9cdb2ecef7d2"
+    },
+    {
+      "path": "reports/test_policy.parquet",
+      "bytes": 788584,
+      "sha256": "9e77a391bab386b56c76ec0d90e40c02b10a2541601d9901f052f2de0290dd7e"
+    }
+  ],
+  "defense_only_controls": {
+    "automatic_financial_actions": false,
+    "human_approval_required": true,
+    "post_payment_rules_isolated_from_model_features": true
+  }
+}

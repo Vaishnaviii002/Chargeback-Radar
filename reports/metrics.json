@@ -1,43 +1,43 @@
 {
   "dataset": {
-    "test_rows": 13355,
-    "positive_labels": 92,
-    "base_rate": 0.006888805690752527
+    "test_rows": 12173,
+    "positive_labels": 87,
+    "base_rate": 0.007146964593773104
   },
   "operating_policy": {
     "review_capacity": 0.02,
-    "operating_threshold": 0.09080766568965479,
-    "flagged_count": 273,
-    "flagged_rate": 0.020441782104080868
+    "operating_threshold": 0.16013071895424835,
+    "flagged_count": 262,
+    "flagged_rate": 0.021523042799638546
   },
   "model_performance": {
-    "average_precision": 0.13656154982333668,
-    "precision": 0.19047619047619047,
-    "recall": 0.5652173913043478,
-    "f1": 0.28493150684931506,
-    "precision_at_1_percent": 0.208955223880597,
-    "precision_at_5_percent": 0.09880239520958084,
-    "expected_calibration_error": 0.0018129435373283838
+    "average_precision": 0.1492642172195245,
+    "precision": 0.1946564885496183,
+    "recall": 0.5862068965517241,
+    "f1": 0.2922636103151863,
+    "precision_at_1_percent": 0.18032786885245902,
+    "precision_at_5_percent": 0.1116584564860427,
+    "expected_calibration_error": 0.001502145365291251
   },
   "confusion_matrix": {
-    "true_negative": 13042,
-    "false_positive": 221,
-    "false_negative": 40,
-    "true_positive": 52
+    "true_negative": 11875,
+    "false_positive": 211,
+    "false_negative": 36,
+    "true_positive": 51
   },
   "false_positive_cost": {
     "manual_review_cost_per_case": 150.0,
-    "false_positive_count": 221,
-    "total_rupees": 33150.0
+    "false_positive_count": 211,
+    "total_rupees": 31650.0
   },
   "exposure": {
     "assumed_chargeback_fee_rupees": 1500.0,
-    "detected_chargeback_exposure_rupees": 227939.55000000002,
-    "missed_chargeback_exposure_rupees": 151529.55
+    "detected_chargeback_exposure_rupees": 208589.96999999997,
+    "missed_chargeback_exposure_rupees": 177816.5
   },
   "disclosures": {
     "synthetic_data": true,
-    "split": "Train months 1-9, calibration month 10, held-out test months 11-12",
+    "split": "Train months 1-9, calibration month 10, held-out test months 11-12; customer IDs are disjoint across all three splits",
     "money_note": "Exposure and false-positive costs are backtested estimates using declared assumptions."
   }
 }
