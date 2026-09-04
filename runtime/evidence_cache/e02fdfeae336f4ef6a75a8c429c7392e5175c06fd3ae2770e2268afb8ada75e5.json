@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "cache_key": "e02fdfeae336f4ef6a75a8c429c7392e5175c06fd3ae2770e2268afb8ada75e5",
+  "case_fingerprint": "9757d6badf626a03d76623d2921f2b42be90245c3b9288d19dc42ea1aa719a37",
+  "generation_version": "evidence-v1:gpt-4o-mini",
+  "provider": "deterministic_fallback",
+  "model": null,
+  "response_id": null,
+  "created_at": "2026-09-04T07:08:29.709788Z",
+  "expires_at": "2026-09-04T07:13:29.709788Z",
+  "evidence_pack": {
+    "schema_version": "1.0",
+    "payment_id": "pay_demo_000000074753",
+    "case_summary": "The available timestamped records support a human-reviewed evidence draft. The deterministic policy recommendation is preserved and no action has been executed.",
+    "case_strength": "STRONG",
+    "recommended_action": "MANUAL_REVIEW",
+    "action_rationale": "Route the cited records to a human analyst before any protected action is considered.",
+    "evidence_items": [
+      {
+        "title": "Triggered rule: SHIPMENT_SLA_BREACHED",
+        "statement": "Recorded Triggered rule: SHIPMENT_SLA_BREACHED: The promised shipment deadline passed without an on-time delivery..",
+        "citation_fact_ids": [
+          "LIFECYCLE_SHIPMENT_SLA_BREACHED"
+        ],
+        "strength": "STRONG",
+        "relevance": "This deterministic rule is direct operational support for human review."
+      },
+      {
+        "title": "Shipment delivered at",
+        "statement": "Recorded Shipment delivered at: 2025-12-17T14:39:38+00:00.",
+        "citation_fact_ids": [
+          "SHIPMENT_DELIVERED_AT"
+        ],
+        "strength": "MODERATE",
+        "relevance": "This timestamped operational record is relevant to the case timeline."
+      },
+      {
+        "title": "Promised shipment deadline",
+        "statement": "Recorded Promised shipment deadline: 2025-12-10T14:39:38+00:00.",
+        "citation_fact_ids": [
+          "SHIPMENT_PROMISED_AT"
+        ],
+        "strength": "MODERATE",
+        "relevance": "This timestamped operational record is relevant to the case timeline."
+      },
+      {
+        "title": "Physical shipment expected",
+        "statement": "Recorded Physical shipment expected: Yes.",
+        "citation_fact_ids": [
+          "SHIPMENT_EXPECTED"
+        ],
+        "strength": "MODERATE",
+        "relevance": "This timestamped operational record is relevant to the case timeline."
+      },
+      {
+        "title": "Cancelled subscription billed",
+        "statement": "Recorded Cancelled subscription billed: No.",
+        "citation_fact_ids": [
+          "CANCELLED_SUBSCRIPTION_BILLED"
+        ],
+        "strength": "MODERATE",
+        "relevance": "This capture-time payment record provides transaction context for human review."
+      },
+      {
+        "title": "Duplicate payment detected",
+        "statement": "Recorded Duplicate payment detected: No.",
+        "citation_fact_ids": [
+          "DUPLICATE_PAYMENT"
+        ],
+        "strength": "MODERATE",
+        "relevance": "This capture-time payment record provides transaction context for human review."
+      }
+    ],
+    "missing_evidence": [],
+    "customer_message": null,
+    "limitations": [
+      "This deterministic fallback did not use the OpenAI model because the live drafting path was unavailable.",
+      "The risk estimate comes from a model trained and evaluated on synthetic data; a human must verify applicability."
+    ],
+    "human_approval_required": true,
+    "action_executed": false
+  }
+}

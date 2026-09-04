@@ -1,0 +1,92 @@
+{
+  "evidence_pack": {
+    "schema_version": "1.0",
+    "payment_id": "pay_smoke_000001",
+    "case_summary": "The case involves a payment made on January 1, 2026, with a promised shipment deadline of January 10, 2026. As of January 20, 2026, the shipment was not delivered by the promised deadline, triggering a SLA breach rule. The calibrated probability of chargeback is 18%.",
+    "case_strength": "INSUFFICIENT",
+    "recommended_action": "PREPARE_EVIDENCE",
+    "action_rationale": "No delivery was observed by the promised deadline, warranting preparation of evidence to address potential disputes.",
+    "evidence_items": [
+      {
+        "title": "Payment created at",
+        "statement": "The payment was created on January 1, 2026.",
+        "citation_fact_ids": [
+          "PAYMENT_CREATED_AT"
+        ],
+        "strength": "STRONG",
+        "relevance": "Directly relates to the transaction date."
+      },
+      {
+        "title": "Payment amount",
+        "statement": "The amount of the payment was INR 2,500.00.",
+        "citation_fact_ids": [
+          "PAYMENT_AMOUNT"
+        ],
+        "strength": "STRONG",
+        "relevance": "Fundamental financial record."
+      },
+      {
+        "title": "3DS status",
+        "statement": "The payment was authenticated via 3DS.",
+        "citation_fact_ids": [
+          "THREEDS_STATUS"
+        ],
+        "strength": "STRONG",
+        "relevance": "Validates transaction security."
+      },
+      {
+        "title": "Promised shipment deadline",
+        "statement": "The promised shipment deadline was January 10, 2026.",
+        "citation_fact_ids": [
+          "SHIPMENT_PROMISED_AT"
+        ],
+        "strength": "STRONG",
+        "relevance": "Essential for determining SLA compliance."
+      },
+      {
+        "title": "Triggered rule: SHIPMENT_SLA_BREACHED",
+        "statement": "The shipment SLA was breached as no delivery was made by January 20, 2026.",
+        "citation_fact_ids": [
+          "LIFECYCLE_SHIPMENT_SLA_BREACHED"
+        ],
+        "strength": "STRONG",
+        "relevance": "Indicates breach of delivery obligations."
+      },
+      {
+        "title": "Calibrated chargeback probability",
+        "statement": "The calibrated chargeback probability is 18%.",
+        "citation_fact_ids": [
+          "MODEL_CALIBRATED_PROBABILITY"
+        ],
+        "strength": "MODERATE",
+        "relevance": "Indicates a potential risk assessment."
+      },
+      {
+        "title": "Policy recommended action",
+        "statement": "The recommended action according to policy is to prepare evidence.",
+        "citation_fact_ids": [
+          "POLICY_RECOMMENDED_ACTION"
+        ],
+        "strength": "STRONG",
+        "relevance": "Guides anticipated actions."
+      }
+    ],
+    "missing_evidence": [],
+    "customer_message": {
+      "subject": "Update on Your Order",
+      "body": "Dear Customer,\n\nWe are currently reviewing your order placed on January 1, 2026. As of now, we have noticed that the shipment has not yet been delivered by the promised date of January 10, 2026. We are preparing the necessary evidence and will keep you updated on the status of your order.\n\nThank you for your patience.\n\nBest regards,\nCustomer Support",
+      "tone": "NEUTRAL",
+      "send_status": "DRAFT_ONLY"
+    },
+    "limitations": [
+      "Evidence is based on observed facts; model outputs may be subject to uncertainty.",
+      "Specific details about the shipment's actual status post-January 10, 2026, are not available."
+    ],
+    "human_approval_required": true,
+    "action_executed": false
+  },
+  "provider": "openai",
+  "model": "gpt-4o-mini-2024-07-18",
+  "response_id": "resp_076604a9ff88830e006a99c534a9e887d2b37afb4db6a9e87f",
+  "latency_ms": 6476
+}

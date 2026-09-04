@@ -13,6 +13,7 @@ import PolicyFrontier from "./components/PolicyFrontier";
 import { fetchMetrics, type MetricsResponse } from "./api";
 import EffectivenessSensitivity from "./components/EffectivenessSensitivity";
 import "./App.css";
+import EvidenceWorkbench from "./components/EvidenceWorkbench";
 
 const ACTIONS = [
   {
@@ -335,6 +336,7 @@ function App() {
             </span>
           </div>
         </section>
+        <EvidenceWorkbench />
         <PolicySimulator />
         <EffectivenessSensitivity />
         <PolicyFrontier />

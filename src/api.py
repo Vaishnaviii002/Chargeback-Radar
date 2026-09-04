@@ -12,6 +12,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from src.evidence_api import router as evidence_router
+
 from src.post_payment_rules import evaluate_post_payment_rules
 from src.calibrate import probability_to_logit
 from src.decide import (
@@ -48,6 +50,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(evidence_router)
 
 class PolicyParamsRequest(BaseModel):
     chargeback_fee: float = Field(
