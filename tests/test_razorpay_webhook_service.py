@@ -77,6 +77,7 @@ def make_service(
     database_path: Path,
     *,
     enabled: bool = True,
+    test_mode: bool = True,
     secret: str | None = SECRET,
 ) -> RazorpayWebhookService:
     return RazorpayWebhookService(
@@ -85,6 +86,7 @@ def make_service(
         ),
         config=RazorpayWebhookConfig(
             enabled=enabled,
+            test_mode=test_mode,
             webhook_secret=(
                 SecretStr(secret)
                 if secret is not None
@@ -348,6 +350,57 @@ def test_disabled_service_fails_closed(
             signature=signature_for(raw_body),
             event_id=EVENT_ID,
         )
+
+
+def test_live_mode_webhook_fails_closed(
+    tmp_path: Path,
+) -> None:
+    service = make_service(
+        tmp_path / "razorpay.sqlite3",
+        test_mode=False,
+    )
+
+    raw_body = event_body()
+
+    with pytest.raises(
+        RazorpayWebhookConfigurationError,
+        match="only Razorpay Test Mode",
+    ):
+        service.process(
+            raw_body=raw_body,
+            signature=signature_for(raw_body),
+            event_id=EVENT_ID,
+        )
+
+    assert (
+        service.store.webhook_event_status(
+            EVENT_ID
+        )
+        is None
+    )
+
+
+def test_environment_webhook_requires_explicit_enablement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "RAZORPAY_WEBHOOK_ENABLED",
+        "false",
+    )
+    monkeypatch.setenv(
+        "RAZORPAY_TEST_MODE",
+        "true",
+    )
+    monkeypatch.setenv(
+        "RAZORPAY_WEBHOOK_SECRET",
+        "",
+    )
+
+    config = RazorpayWebhookConfig.from_env()
+
+    assert config.enabled is False
+    assert config.test_mode is True
+    assert config.webhook_secret is None
 
 
 def test_result_contains_no_secret_or_pii(

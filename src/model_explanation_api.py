@@ -560,7 +560,7 @@ def _validate_payment_id(
         raise HTTPException(
             status_code=(
                 status
-                .HTTP_422_UNPROCESSABLE_ENTITY
+                .HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail=(
                 "Invalid payment ID format."

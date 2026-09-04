@@ -48,6 +48,7 @@ from src.razorpay_store import (
     RazorpayStoreError,
 )
 from src.razorpay_webhook import (
+    MAX_WEBHOOK_BODY_BYTES,
     RazorpayWebhookConfigurationError,
     RazorpayWebhookPayloadError,
     RazorpayWebhookSignatureError,
@@ -121,14 +122,36 @@ class RazorpayVerifyAndScoreRequest(BaseModel):
 
 @lru_cache(maxsize=1)
 def get_razorpay_config() -> RazorpayConfig:
-    return RazorpayConfig.from_env()
+    try:
+        return RazorpayConfig.from_env()
+    except RazorpayAdapterError as error:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Razorpay Test Mode configuration is "
+                "unavailable."
+            ),
+        ) from error
 
 
 @lru_cache(maxsize=1)
 def get_razorpay_adapter() -> RazorpayAdapter:
-    return RazorpayAdapter(
-        config=get_razorpay_config()
-    )
+    try:
+        return RazorpayAdapter(
+            config=get_razorpay_config()
+        )
+    except RazorpayAdapterError as error:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Razorpay Test Mode integration is "
+                "unavailable."
+            ),
+        ) from error
 
 
 @lru_cache(maxsize=1)
@@ -154,6 +177,25 @@ router = APIRouter(
     prefix="/api/razorpay-test",
     tags=["Razorpay Test Mode"],
 )
+
+
+async def _read_bounded_raw_body(
+    request: Request,
+) -> bytes:
+    raw_body = bytearray()
+
+    async for chunk in request.stream():
+        if (
+            len(raw_body) + len(chunk)
+            > MAX_WEBHOOK_BODY_BYTES
+        ):
+            raise RazorpayWebhookPayloadError(
+                "Webhook body exceeds the size limit."
+            )
+
+        raw_body.extend(chunk)
+
+    return bytes(raw_body)
 
 
 @router.get(
@@ -240,11 +282,14 @@ async def receive_razorpay_webhook(
         get_razorpay_webhook_service
     ),
 ) -> RazorpayWebhookDeliveryResult:
-    # Read the untouched bytes. Do not declare a Pydantic
-    # request-body model for this endpoint.
-    raw_body = await request.body()
-
     try:
+        # Stream into a bounded buffer so the exact bytes reach
+        # signature verification without accepting an unbounded
+        # request body. Do not declare a Pydantic body model.
+        raw_body = await _read_bounded_raw_body(
+            request
+        )
+
         return service.process(
             raw_body=raw_body,
             signature=razorpay_signature,
@@ -373,7 +418,7 @@ def fetch_razorpay_order(
     except ValueError as error:
         raise HTTPException(
             status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail="Invalid Razorpay order ID.",
         ) from error
@@ -462,7 +507,7 @@ def verify_razorpay_checkout(
     except RazorpayServiceValidationError as error:
         raise HTTPException(
             status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail=str(error),
         ) from error
@@ -549,7 +594,7 @@ def verify_and_score_razorpay_checkout(
     ) as error:
         raise HTTPException(
             status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail=(
                 "The verified Test Mode payment could "
@@ -589,7 +634,7 @@ def fetch_razorpay_payment(
     except ValueError as error:
         raise HTTPException(
             status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail="Invalid Razorpay payment ID.",
         ) from error
@@ -646,7 +691,7 @@ def score_razorpay_payment(
     except ValueError as error:
         raise HTTPException(
             status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail=(
                 "Invalid Razorpay payment or "
@@ -657,7 +702,7 @@ def score_razorpay_payment(
     except RazorpayServiceValidationError as error:
         raise HTTPException(
             status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
+                status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail=str(error),
         ) from error

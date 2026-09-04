@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import {
   Activity,
   Database,
@@ -9,7 +15,6 @@ import {
 } from "lucide-react";
 import TransactionQueue from "./components/TransactionQueue";
 import PolicySimulator from "./components/PolicySimulator";
-import PolicyFrontier from "./components/PolicyFrontier";
 import { fetchMetrics, type MetricsResponse } from "./api";
 import EffectivenessSensitivity from "./components/EffectivenessSensitivity";
 import "./App.css";
@@ -18,6 +23,10 @@ import ModelExplanationWorkbench from "./components/ModelExplanationWorkbench";
 import "./components/ModelExplanationWorkbench.css";
 import RazorpayTestCheckout from "./components/RazorpayTestCheckout";
 import "./components/RazorpayTestCheckout.css";
+
+const PolicyFrontier = lazy(
+  () => import("./components/PolicyFrontier"),
+);
 
 
 const ACTIONS = [
@@ -346,7 +355,15 @@ function App() {
         <EvidenceWorkbench />
         <PolicySimulator />
         <EffectivenessSensitivity />
-        <PolicyFrontier />
+        <Suspense
+          fallback={
+            <section className="panel" aria-busy="true">
+              Loading policy frontier…
+            </section>
+          }
+        >
+          <PolicyFrontier />
+        </Suspense>
         <TransactionQueue />
       </main>
     </div>

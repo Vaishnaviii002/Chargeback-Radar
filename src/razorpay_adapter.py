@@ -92,31 +92,36 @@ class RazorpayConfig(BaseModel):
             "RAZORPAY_KEY_SECRET"
         )
 
-        return cls(
-            enabled=_environment_boolean(
-                "RAZORPAY_INTEGRATION_ENABLED",
-                False,
-            ),
-            test_mode=_environment_boolean(
-                "RAZORPAY_TEST_MODE",
-                True,
-            ),
-            key_id=(
-                os.getenv("RAZORPAY_KEY_ID")
-                or None
-            ),
-            key_secret=(
-                SecretStr(key_secret)
-                if key_secret
-                else None
-            ),
-            timeout_seconds=float(
-                os.getenv(
-                    "RAZORPAY_TIMEOUT_SECONDS",
-                    "10",
-                )
-            ),
-        )
+        try:
+            return cls(
+                enabled=_environment_boolean(
+                    "RAZORPAY_INTEGRATION_ENABLED",
+                    False,
+                ),
+                test_mode=_environment_boolean(
+                    "RAZORPAY_TEST_MODE",
+                    True,
+                ),
+                key_id=(
+                    os.getenv("RAZORPAY_KEY_ID")
+                    or None
+                ),
+                key_secret=(
+                    SecretStr(key_secret)
+                    if key_secret
+                    else None
+                ),
+                timeout_seconds=float(
+                    os.getenv(
+                        "RAZORPAY_TIMEOUT_SECONDS",
+                        "10",
+                    )
+                ),
+            )
+        except (ValueError, ValidationError) as error:
+            raise RazorpayConfigurationError(
+                "Razorpay configuration is invalid."
+            ) from error
 
     def require_test_credentials(
         self,

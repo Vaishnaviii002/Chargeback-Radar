@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -238,6 +239,61 @@ def _test_client():
         service,
         adapter,
     )
+
+
+def test_disabled_dependency_returns_safe_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "RAZORPAY_INTEGRATION_ENABLED",
+        "false",
+    )
+    monkeypatch.setenv(
+        "RAZORPAY_KEY_ID",
+        "",
+    )
+    monkeypatch.setenv(
+        "RAZORPAY_KEY_SECRET",
+        "",
+    )
+
+    get_razorpay_service.cache_clear()
+    get_razorpay_adapter.cache_clear()
+    get_razorpay_config.cache_clear()
+
+    application = FastAPI()
+    application.include_router(router)
+
+    try:
+        with TestClient(
+            application,
+            raise_server_exceptions=False,
+        ) as client:
+            response = client.post(
+                "/api/razorpay-test/orders",
+                headers={
+                    "Idempotency-Key": (
+                        "disabled_test_001"
+                    )
+                },
+                json={
+                    "amount": 100,
+                    "currency": "INR",
+                    "receipt": "disabled_test",
+                },
+            )
+    finally:
+        get_razorpay_service.cache_clear()
+        get_razorpay_adapter.cache_clear()
+        get_razorpay_config.cache_clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": (
+            "Razorpay Test Mode integration is "
+            "unavailable."
+        )
+    }
 
 
 def test_status_contains_no_secret() -> None:

@@ -36,7 +36,8 @@ class RazorpayWebhookDisabledError(
 
 @dataclass(frozen=True)
 class RazorpayWebhookConfig:
-    enabled: bool = True
+    enabled: bool = False
+    test_mode: bool = True
     webhook_secret: SecretStr | None = None
 
     @classmethod
@@ -55,6 +56,11 @@ class RazorpayWebhookConfig:
 
         enabled_value = os.getenv(
             "RAZORPAY_WEBHOOK_ENABLED",
+            "false",
+        ).strip().lower()
+
+        test_mode_value = os.getenv(
+            "RAZORPAY_TEST_MODE",
             "true",
         ).strip().lower()
 
@@ -64,6 +70,12 @@ class RazorpayWebhookConfig:
 
         return cls(
             enabled=enabled_value in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            },
+            test_mode=test_mode_value in {
                 "1",
                 "true",
                 "yes",
@@ -143,6 +155,12 @@ class RazorpayWebhookService:
             raise RazorpayWebhookDisabledError(
                 "Razorpay webhook processing is "
                 "disabled."
+            )
+
+        if not self.config.test_mode:
+            raise RazorpayWebhookConfigurationError(
+                "Chargeback Radar permits only Razorpay "
+                "Test Mode webhooks."
             )
 
         webhook_secret = (

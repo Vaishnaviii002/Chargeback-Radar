@@ -14,6 +14,7 @@ from src.razorpay_store import (
     RazorpayStoreError,
 )
 from src.razorpay_webhook import (
+    MAX_WEBHOOK_BODY_BYTES,
     RazorpayVerifiedWebhook,
     RazorpayWebhookPayloadError,
     RazorpayWebhookSignatureError,
@@ -174,6 +175,29 @@ def test_raw_body_reaches_service_unchanged(
     )
 
     assert SIGNATURE not in response.text
+
+
+def test_oversized_body_is_rejected_before_service(
+    client: TestClient,
+) -> None:
+    service = FakeWebhookService()
+    override_service(service)
+
+    response = client.post(
+        "/api/razorpay-test/webhooks",
+        content=(
+            b"x" * (MAX_WEBHOOK_BODY_BYTES + 1)
+        ),
+        headers=webhook_headers(),
+    )
+
+    assert response.status_code == 400
+    assert service.calls == []
+    assert response.json() == {
+        "detail": (
+            "Razorpay webhook payload is invalid."
+        )
+    }
 
 
 def test_duplicate_event_returns_replay(

@@ -413,7 +413,7 @@ export default function RazorpayTestCheckout() {
             Razorpay Test Mode
           </span>
 
-          <h2>Live payment-risk demonstration</h2>
+          <h2>Test Mode payment-risk demonstration</h2>
 
           <p>
             Create a Test Mode card payment,

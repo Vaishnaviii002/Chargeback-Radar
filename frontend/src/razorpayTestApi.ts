@@ -94,7 +94,6 @@ export type RiskScore = {
   decision_source: string;
   rules: unknown;
   risk_band: RiskBand;
-  explanation: unknown;
   expected_costs_rupees: Record<
     string,
     number

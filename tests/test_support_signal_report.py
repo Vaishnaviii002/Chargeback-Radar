@@ -404,7 +404,9 @@ def test_report_contains_no_raw_text_or_outcomes(
         & FORBIDDEN_REPORT_COLUMNS
     )
 
-    serialized = report.to_json()
+    serialized = report.to_json(
+        date_format="iso"
+    )
 
     assert "Please cancel" not in serialized
     assert "item has not arrived" not in serialized

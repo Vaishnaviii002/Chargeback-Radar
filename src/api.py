@@ -65,10 +65,6 @@ app.add_middleware(
 )
 
 
-app.include_router(
-    model_explanation_router
-)
-
 app.include_router(evidence_router)
 app.include_router(model_explanation_router)
 app.include_router(razorpay_router)

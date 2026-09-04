@@ -147,13 +147,13 @@ def _safe_as_of(value: datetime | None) -> datetime:
         return datetime.now(UTC).replace(second=0, microsecond=0)
     if value.tzinfo is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="as_of must include a timezone.",
         )
     normalized = value.astimezone(UTC)
     if normalized > datetime.now(UTC):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="as_of cannot be in the future.",
         )
     return normalized
@@ -162,7 +162,7 @@ def _safe_as_of(value: datetime | None) -> datetime:
 def _validate_payment_id(payment_id: str) -> None:
     if not PAYMENT_ID_PATTERN.fullmatch(payment_id):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid payment ID format.",
         )
 
@@ -269,12 +269,12 @@ def generate_transaction_evidence(
         )
     except EvidenceFactError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The payment cannot form a valid evidence case.",
         ) from error
     except EvidenceGuardrailError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The evidence request failed safety validation.",
         ) from error
     except (AuditIntegrityError, EvidenceStoreError) as error:
