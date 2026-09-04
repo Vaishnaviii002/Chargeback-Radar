@@ -1,28 +1,37 @@
 import json
-import logging
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-import joblib
+from src.razorpay_api import (
+    router as razorpay_router,
+)
+
+
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from src.razorpay_normalizer import (
+    CaptureTimeScoringPayload,
+)
+from src.risk_scoring import (
+    RiskScoringError,
+    score_capture_time_payment,
+)
+
 from src.evidence_api import router as evidence_router
 
 from src.post_payment_rules import evaluate_post_payment_rules
-from src.calibrate import probability_to_logit
+
 from src.decide import (
-    ACTIONS,
     CostParams,
-    calculate_expected_costs,
     simulate_policy,
 )
-from src.rules import evaluate_rules
+
 from src.model_explanation_api import (
     get_model_explanation as get_stored_model_explanation,
     get_model_explanation_delivery_service,
@@ -30,7 +39,7 @@ from src.model_explanation_api import (
     router as model_explanation_router,
 )
 
-logger = logging.getLogger(__name__)
+
 DATA_DIR = Path("data")
 REPORTS_DIR = Path("reports")
 ARTIFACTS_DIR = Path("artifacts")
@@ -55,11 +64,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(evidence_router)
 
 app.include_router(
     model_explanation_router
 )
+
+app.include_router(evidence_router)
+app.include_router(model_explanation_router)
+app.include_router(razorpay_router)
 
 class PolicyParamsRequest(BaseModel):
     chargeback_fee: float = Field(
@@ -236,7 +248,6 @@ def read_json_file(path: Path) -> dict:
     with open(path, "r", encoding="utf-8") as file:
         return json.load(file)
 
-
 @lru_cache(maxsize=1)
 def load_test_data() -> pd.DataFrame:
     path = REPORTS_DIR / "test_scored.parquet"
@@ -247,8 +258,7 @@ def load_test_data() -> pd.DataFrame:
         )
 
     return pd.read_parquet(path)
-
-
+    
 @lru_cache(maxsize=1)
 def load_default_policy_data() -> pd.DataFrame:
     path = REPORTS_DIR / "test_policy.parquet"
@@ -281,50 +291,6 @@ def load_operation_data() -> pd.DataFrame:
         )
 
     return pd.read_parquet(path)
-
-@lru_cache(maxsize=1)
-def load_model_bundle() -> dict:
-    path = ARTIFACTS_DIR / "model_bundle.joblib"
-
-    if not path.exists():
-        raise FileNotFoundError(
-            "artifacts/model_bundle.joblib is missing."
-        )
-
-    return joblib.load(path)
-
-
-@lru_cache(maxsize=1)
-def load_calibrator_bundle() -> dict:
-    path = ARTIFACTS_DIR / "calibrator.joblib"
-
-    if not path.exists():
-        raise FileNotFoundError(
-            "artifacts/calibrator.joblib is missing."
-        )
-
-    return joblib.load(path)
-
-
-def calibrate_probability(
-    raw_probability: np.ndarray,
-    calibrator_bundle: dict,
-) -> np.ndarray:
-    method = calibrator_bundle["method"]
-    calibrator = calibrator_bundle["calibrator"]
-
-    if method == "isotonic":
-        result = calibrator.predict(raw_probability)
-    elif method == "sigmoid":
-        result = calibrator.predict_proba(
-            probability_to_logit(raw_probability)
-        )[:, 1]
-    else:
-        raise ValueError(
-            f"Unknown calibration method: {method}"
-        )
-
-    return np.clip(result, 1e-6, 1 - 1e-6)
 
 
 def dataframe_records(
@@ -561,31 +527,27 @@ def get_transaction_lifecycle(
     }
 
 @app.post("/api/score")
-def score_payment(request: PaymentScoreRequest):
+def score_payment(
+    request: PaymentScoreRequest,
+):
     try:
-        model_bundle = load_model_bundle()
-        calibrator_bundle = load_calibrator_bundle()
-    except FileNotFoundError as error:
+        scoring_payload = (
+            CaptureTimeScoringPayload.model_validate(
+                request.model_dump()
+            )
+        )
+
+        score = score_capture_time_payment(
+            scoring_payload
+        )
+
+    except RiskScoringError as error:
         raise HTTPException(
             status_code=503,
-            detail=str(error),
+            detail=(
+                "Risk scoring is temporarily unavailable."
+            ),
         ) from error
-
-    request_data = request.model_dump()
-    created_at = request_data.pop("created_at")
-
-    day_of_week = created_at.weekday()
-
-    request_data.update(
-        {
-            "hour_of_day": created_at.hour,
-            "day_of_week": day_of_week,
-            "is_weekend": int(day_of_week >= 5),
-        }
-    )
-
-    # Run deterministic capture-time rules.
-    rule_result = evaluate_rules(request_data)
 
     explanation = {
         "available": False,
@@ -597,111 +559,7 @@ def score_payment(request: PaymentScoreRequest):
         ),
     }
 
-    model_features = model_bundle["model_features"]
-
-    model_input = pd.DataFrame(
-        [request_data]
-    )[model_features]
-
-    transformed_input = model_bundle[
-        "preprocessor"
-    ].transform(model_input)
-
-    raw_probability = model_bundle[
-        "model"
-    ].predict_proba(transformed_input)[:, 1]
-
-    calibrated_probability = calibrate_probability(
-        raw_probability,
-        calibrator_bundle,
-    )
-
-    probability = float(calibrated_probability[0])
-    amount_rupees = request.amount_paise / 100
-
-    default_params = CostParams()
-
-    expected_costs = calculate_expected_costs(
-        np.array([probability]),
-        np.array([amount_rupees]),
-        default_params,
-    )[0]
-
-    selected_index = int(np.argmin(expected_costs))
-
-    model_recommended_action = ACTIONS[
-        selected_index
-    ]
-
-    hard_override_action = rule_result[
-        "hard_override_action"
-    ]
-
-    # Only clear merchant errors can override the model.
-    # Every financial action still requires human approval.
-    recommended_action = (
-        hard_override_action
-        or model_recommended_action
-    )
-
-    if hard_override_action is not None:
-        decision_source = "MERCHANT_ERROR_RULE"
-    else:
-        decision_source = "COST_OPTIMIZED_MODEL"
-
-    if probability < 0.01:
-        risk_band = "LOW"
-    elif probability < 0.05:
-        risk_band = "MEDIUM"
-    elif probability < 0.15:
-        risk_band = "HIGH"
-    else:
-        risk_band = "CRITICAL"
-
-    cost_breakdown = {
-        action: float(expected_costs[index])
-        for index, action in enumerate(ACTIONS)
-    }
-
-    requires_human_approval = (
-        recommended_action
-        in {
-            "MANUAL_REVIEW",
-            "RECOMMEND_REFUND",
-        }
-    )
-
     return {
-        "raw_probability": float(
-            raw_probability[0]
-        ),
-        "calibrated_probability": probability,
-        "risk_percentage": round(
-            probability * 100,
-            3,
-        ),
-        "model_recommended_action": model_recommended_action,
-        "recommended_action": recommended_action,
-        "decision_source": decision_source,
-        "rules": rule_result,
-        "risk_band": risk_band,
+        **score.model_dump(),
         "explanation": explanation,
-        "expected_costs_rupees": cost_breakdown,
-        "model_version": model_bundle[
-            "model_version"
-        ],
-        "calibration_method": calibrator_bundle[
-            "method"
-        ],
-        "requires_human_approval": (
-            requires_human_approval
-        ),
-        "action_executed": False,
-        "disclosure": (
-            "Prediction produced using a calibrated model "
-            "and deterministic capture-time rules. The model "
-            "was trained on synthetic data. Recommendations "
-            "are decision-support signals and no financial "
-            "action is executed automatically."
-        ),
     }

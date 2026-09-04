@@ -16,6 +16,8 @@ import "./App.css";
 import EvidenceWorkbench from "./components/EvidenceWorkbench";
 import ModelExplanationWorkbench from "./components/ModelExplanationWorkbench";
 import "./components/ModelExplanationWorkbench.css";
+import RazorpayTestCheckout from "./components/RazorpayTestCheckout";
+import "./components/RazorpayTestCheckout.css";
 
 
 const ACTIONS = [
@@ -339,6 +341,7 @@ function App() {
             </span>
           </div>
         </section>
+        <RazorpayTestCheckout />
         <ModelExplanationWorkbench />
         <EvidenceWorkbench />
         <PolicySimulator />
