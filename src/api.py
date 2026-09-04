@@ -23,7 +23,12 @@ from src.decide import (
     simulate_policy,
 )
 from src.rules import evaluate_rules
-from src.explain import explain_payment
+from src.model_explanation_api import (
+    get_model_explanation as get_stored_model_explanation,
+    get_model_explanation_delivery_service,
+    get_model_explanation_repository,
+    router as model_explanation_router,
+)
 
 logger = logging.getLogger(__name__)
 DATA_DIR = Path("data")
@@ -51,6 +56,10 @@ app.add_middleware(
 )
 
 app.include_router(evidence_router)
+
+app.include_router(
+    model_explanation_router
+)
 
 class PolicyParamsRequest(BaseModel):
     chargeback_fee: float = Field(
@@ -480,96 +489,29 @@ def get_transaction(payment_id: str):
     return dataframe_records(transaction)[0]
 
 
+
+
+
+
+
 @app.get(
     "/api/transactions/{payment_id}/explanation"
 )
-def get_transaction_explanation(
+def get_transaction_explanation_compatibility(
     payment_id: str,
 ):
-    try:
-        feature_data = load_feature_data()
-        policy_data = load_default_policy_data()
-    except FileNotFoundError as error:
-        raise HTTPException(
-            status_code=503,
-            detail=str(error),
-        ) from error
-
-    feature_row = feature_data[
-        feature_data["payment_id"] == payment_id
-    ]
-
-    policy_row = policy_data[
-        policy_data["payment_id"] == payment_id
-    ]
-
-    if feature_row.empty or policy_row.empty:
-        raise HTTPException(
-            status_code=404,
-            detail="Transaction not found.",
-        )
-
-    payment = feature_row.iloc[0].to_dict()
-    policy = policy_row.iloc[0]
-
-    try:
-        explanation = {
-            "available": True,
-            **explain_payment(
-                payment,
-                top_n=6,
-            ),
-        }
-    except Exception:
-        logger.exception(
-            "Stored transaction explanation failed."
-        )
-
-        explanation = {
-            "available": False,
-            "method": "TreeSHAP",
-            "top_factors": [],
-            "reason": (
-                "Explanation temporarily unavailable."
-            ),
-        }
-
-    rule_result = evaluate_rules(payment)
-
-    return {
-        "payment_id": payment_id,
-        "customer_id": str(
-            policy["customer_id"]
+    return get_stored_model_explanation(
+        payment_id=payment_id,
+        use_ai=False,
+        repository=(
+            get_model_explanation_repository()
         ),
-        "calibrated_probability": float(
-            policy["calibrated_probability"]
+        delivery_service=(
+            get_model_explanation_delivery_service()
         ),
-        "risk_percentage": round(
-            float(
-                policy["calibrated_probability"]
-            )
-            * 100,
-            3,
-        ),
-        "recommended_action": str(
-            policy["recommended_action"]
-        ),
-        "rules": rule_result,
-        "explanation": explanation,
-        "requires_human_approval": (
-            str(policy["recommended_action"])
-            in {
-                "MANUAL_REVIEW",
-                "RECOMMEND_REFUND",
-            }
-        ),
-        "action_executed": False,
-        "disclosure": (
-            "TreeSHAP explains the raw model output. "
-            "The displayed probability is calibrated. "
-            "No financial action is executed automatically."
-        ),
-    }
+    )
+
+
 
 @app.get(
     "/api/transactions/{payment_id}/lifecycle"
@@ -644,28 +586,16 @@ def score_payment(request: PaymentScoreRequest):
 
     # Run deterministic capture-time rules.
     rule_result = evaluate_rules(request_data)
-    try:
-        explanation = {
-            "available": True,
-            **explain_payment(
-                request_data,
-                top_n=6,
-            ),
-        }
-    except Exception:
-        logger.exception(
-            "SHAP explanation generation failed."
-        )
 
-        explanation = {
-            "available": False,
-            "method": "TreeSHAP",
-            "top_factors": [],
-            "reason": (
-                "Explanation temporarily unavailable. "
-                "The risk score is still valid."
-            ),
-        }
+    explanation = {
+        "available": False,
+        "method": "TreeSHAP",
+        "top_factors": [],
+        "reason": (
+            "Use the dedicated model-explanation endpoint "
+            "for validated held-out transaction explanations."
+        ),
+    }
 
     model_features = model_bundle["model_features"]
 

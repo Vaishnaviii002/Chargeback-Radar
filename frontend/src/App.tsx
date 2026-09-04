@@ -14,6 +14,9 @@ import { fetchMetrics, type MetricsResponse } from "./api";
 import EffectivenessSensitivity from "./components/EffectivenessSensitivity";
 import "./App.css";
 import EvidenceWorkbench from "./components/EvidenceWorkbench";
+import ModelExplanationWorkbench from "./components/ModelExplanationWorkbench";
+import "./components/ModelExplanationWorkbench.css";
+
 
 const ACTIONS = [
   {
@@ -336,6 +339,7 @@ function App() {
             </span>
           </div>
         </section>
+        <ModelExplanationWorkbench />
         <EvidenceWorkbench />
         <PolicySimulator />
         <EffectivenessSensitivity />

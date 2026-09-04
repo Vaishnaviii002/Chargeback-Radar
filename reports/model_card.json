@@ -1,0 +1,318 @@
+{
+  "model_card_version": "model-card-v1",
+  "project": "Chargeback Radar",
+  "track": "Razorpay AI Buildathon 2026 — Track 02 AI Risk Manager",
+  "system_type": "Defense-only merchant decision support",
+  "target": {
+    "name": "chargeback_within_120d",
+    "window_days": 120,
+    "definition": "Whether a synthetic payment receives a chargeback within the 120-day observation window."
+  },
+  "model": {
+    "estimator": "LGBMClassifier",
+    "version": "0.1.0",
+    "seed": 42,
+    "best_iteration": 1,
+    "calibration_method": "isotonic"
+  },
+  "data": {
+    "synthetic": true,
+    "total_rows": 80000,
+    "training_rows": 59048,
+    "calibration_rows": 8779,
+    "test_rows": 12173,
+    "split": {
+      "training": "months 1-9",
+      "calibration": "month 10",
+      "test": "months 11-12"
+    },
+    "customer_disjoint": true
+  },
+  "features": {
+    "model_features": [
+      "card_network",
+      "product_category",
+      "cvv_result",
+      "threeds_status",
+      "amount_paise",
+      "hour_of_day",
+      "day_of_week",
+      "is_weekend",
+      "is_digital_good",
+      "descriptor_clarity_score",
+      "phone_verified",
+      "email_verified",
+      "account_age_days",
+      "has_prior_order",
+      "total_prior_orders",
+      "prior_disputes_count",
+      "days_since_last_order",
+      "txns_last_1h",
+      "txns_last_24h",
+      "txns_last_7d",
+      "amount_last_24h_paise",
+      "device_is_new",
+      "ip_country_matches_billing",
+      "ip_is_proxy_or_vpn",
+      "threeds_liability_shift",
+      "billing_shipping_distance_km"
+    ],
+    "categorical_features": [
+      "card_network",
+      "product_category",
+      "cvv_result",
+      "threeds_status"
+    ],
+    "numerical_features": [
+      "amount_paise",
+      "hour_of_day",
+      "day_of_week",
+      "is_weekend",
+      "is_digital_good",
+      "descriptor_clarity_score",
+      "phone_verified",
+      "email_verified",
+      "account_age_days",
+      "has_prior_order",
+      "total_prior_orders",
+      "prior_disputes_count",
+      "days_since_last_order",
+      "txns_last_1h",
+      "txns_last_24h",
+      "txns_last_7d",
+      "amount_last_24h_paise",
+      "device_is_new",
+      "ip_country_matches_billing",
+      "ip_is_proxy_or_vpn",
+      "threeds_liability_shift",
+      "billing_shipping_distance_km"
+    ],
+    "forbidden_features": [
+      "customer_id",
+      "customer_name",
+      "customer_email",
+      "customer_phone",
+      "dispute_id",
+      "dispute_status",
+      "dispute_reason",
+      "reason_code",
+      "chargeback_family",
+      "chargeback_outcome",
+      "true_fraud",
+      "final_outcome",
+      "was_won",
+      "was_lost",
+      "future_chargeback",
+      "future_refund",
+      "future_delivery",
+      "future_dispute",
+      "final_reason_code"
+    ]
+  },
+  "canonical_evaluation": {
+    "test_rows": 12173,
+    "positive_labels": 87,
+    "base_rate": 0.007146964593773104,
+    "average_precision": 0.1492642172195245,
+    "precision": 0.1946564885496183,
+    "recall": 0.5862068965517241,
+    "f1": 0.2922636103151863,
+    "brier_score": 0.0062581254145627025,
+    "expected_calibration_error": 0.001502145365291251,
+    "precision_at_1_percent": 0.18032786885245902,
+    "precision_at_5_percent": 0.1116584564860427,
+    "operating_threshold": 0.16013071895424835,
+    "review_capacity": 0.02,
+    "flagged_count": 262,
+    "flagged_rate": 0.021523042799638546,
+    "confusion_matrix": {
+      "true_negative": 11875,
+      "false_positive": 211,
+      "false_negative": 36,
+      "true_positive": 51
+    },
+    "false_positive_cost": {
+      "manual_review_cost_per_case": 150.0,
+      "false_positive_count": 211,
+      "total_rupees": 31650.0
+    }
+  },
+  "unseen_customer_stress_test": {
+    "definition": "All held-out test customers are absent from training and calibration.",
+    "unique_test_customers": 2543,
+    "training_overlap": 0,
+    "calibration_overlap": 0,
+    "test_rows": 12173,
+    "average_precision": 0.1492642172195245,
+    "precision": 0.1946564885496183,
+    "recall": 0.5862068965517241
+  },
+  "support_text_signals": {
+    "rows": 80000,
+    "unique_sanitized_input_hashes": 37,
+    "payments_with_observable_text": 8270,
+    "excluded_future_events": 5297,
+    "delivery_mode_counts": {
+      "CACHE": 79999,
+      "DETERMINISTIC_FALLBACK": 1
+    },
+    "provider_counts": {
+      "deterministic_fallback": 71730,
+      "openai": 8270
+    },
+    "fallback_rows": 71730,
+    "fallback_reason_counts": {
+      "CACHED_FALLBACK": 71729,
+      "NONE": 8270,
+      "NO_OBSERVABLE_TEXT": 1
+    },
+    "signals": {
+      "intent_to_cancel": {
+        "positive_count": 1115,
+        "positive_rate": 0.0139375
+      },
+      "non_receipt_complaint": {
+        "positive_count": 2416,
+        "positive_rate": 0.0302
+      },
+      "dissatisfaction": {
+        "positive_count": 2422,
+        "positive_rate": 0.030275
+      }
+    }
+  },
+  "ablation": {
+    "report_version": "ablation-v1",
+    "support_signal_features": [
+      "intent_to_cancel",
+      "non_receipt_complaint",
+      "dissatisfaction"
+    ],
+    "baseline_metrics": {
+      "average_precision": 0.1492642172195245,
+      "pr_auc": 0.3911848398094481,
+      "precision": 0.1946564885496183,
+      "recall": 0.5862068965517241,
+      "f1": 0.2922636103151863,
+      "brier_score": 0.0062581254145627025,
+      "expected_calibration_error": 0.001502145365291251,
+      "precision_at_1_percent": 0.18032786885245902,
+      "precision_at_5_percent": 0.1116584564860427,
+      "operating_threshold": 0.16013071895424835,
+      "flagged_count": 262,
+      "flagged_rate": 0.021523042799638546,
+      "true_positive": 51,
+      "false_positive": 211,
+      "false_negative": 36,
+      "true_negative": 11875
+    },
+    "enhanced_metrics": {
+      "average_precision": 0.15277227434250096,
+      "pr_auc": 0.41311955647552134,
+      "precision": 0.1936619718309859,
+      "recall": 0.632183908045977,
+      "f1": 0.29649595687331537,
+      "brier_score": 0.006200203604559542,
+      "expected_calibration_error": 0.001240663516331954,
+      "precision_at_1_percent": 0.22950819672131148,
+      "precision_at_5_percent": 0.11494252873563218,
+      "operating_threshold": 0.1601423487544484,
+      "flagged_count": 284,
+      "flagged_rate": 0.023330321202661628,
+      "true_positive": 55,
+      "false_positive": 229,
+      "false_negative": 32,
+      "true_negative": 11857
+    },
+    "delta_enhanced_minus_baseline": {
+      "average_precision": 0.003508057122976471,
+      "pr_auc": 0.021934716666073217,
+      "precision": -0.0009945167186324044,
+      "recall": 0.04597701149425293,
+      "f1": 0.0042323465581290964,
+      "brier_score": -5.792181000316074e-05,
+      "expected_calibration_error": -0.000261481848959297,
+      "precision_at_1_percent": 0.04918032786885246,
+      "precision_at_5_percent": 0.003284072249589487,
+      "flagged_count": 22,
+      "flagged_rate": 0.0018072784030230826,
+      "true_positive": 4,
+      "false_positive": 18,
+      "false_negative": -4,
+      "true_negative": -18
+    },
+    "controls": {
+      "same_payment_rows": true,
+      "same_customer_disjoint_splits": true,
+      "same_seed": true,
+      "same_lightgbm_parameters": true,
+      "same_early_stopping_procedure": true,
+      "same_calibration_selection": true,
+      "same_evaluation_procedure": true,
+      "train_period": "months 1-9",
+      "calibration_period": "month 10",
+      "test_period": "months 11-12",
+      "support_scoring_policy": "payment timestamp plus 7 days",
+      "support_events_after_scoring_excluded": true
+    }
+  },
+  "intended_use": [
+    "Prioritize merchant payments for human risk review.",
+    "Prioritize preparation of factual chargeback evidence.",
+    "Support bounded, cost-aware merchant defense workflows.",
+    "Evaluate risk-system methodology on synthetic held-out data."
+  ],
+  "prohibited_use": [
+    "Automatic accusation of a customer.",
+    "Criminal or fraud determination.",
+    "Creditworthiness or lending decisions.",
+    "Identity profiling.",
+    "Automatic customer punishment.",
+    "Automatic refund execution.",
+    "Automatic customer messaging.",
+    "Automatic dispute submission.",
+    "Offensive fraud or payment abuse."
+  ],
+  "human_control": {
+    "human_approval_required": true,
+    "automatic_refund": false,
+    "automatic_customer_message": false,
+    "automatic_dispute_submission": false,
+    "action_vocabulary": [
+      "MONITOR",
+      "PREPARE_EVIDENCE",
+      "MANUAL_REVIEW",
+      "RECOMMEND_REFUND"
+    ]
+  },
+  "explainability": {
+    "method": "SHAP TreeExplainer",
+    "label": "Model explanation — not evidence",
+    "causal": false,
+    "dispute_evidence": false
+  },
+  "llm_boundary": {
+    "produces_risk_probability": false,
+    "may_change_policy_action": false,
+    "support_signal_count": 3,
+    "support_text_timestamp_safe": true,
+    "pii_removed": true,
+    "prompt_injection_defense": true,
+    "deterministic_fallback": true,
+    "input_hash_cache": true
+  },
+  "known_limitations": [
+    "The dataset, chargebacks, operational events and support messages are synthetic.",
+    [
+      "Absolute performance does not establish real-world generalization to merchant traffic."
+    ],
+    "Issuer, network and merchant behavior is simplified compared with production.",
+    "Concept drift and live population drift have not been measured.",
+    "Support-text signals are evaluated at a seven-day post-payment scoring point.",
+    "Support-message templates simplify real language diversity and ambiguity.",
+    "SHAP describes model contribution, not causation, fraud or dispute evidence.",
+    "The LLM does not generate calibrated chargeback-risk probability.",
+    "Razorpay test mode cannot fabricate a real issuer-generated chargeback.",
+    "All protected merchant actions require human review and approval."
+  ]
+}

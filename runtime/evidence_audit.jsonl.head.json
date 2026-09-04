@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "records": 3,
-  "last_event_hash": "e120121260f56334f97cb6e5ee672e377215f9e801af5833a194ae678beb7f20",
-  "integrity_mode": "HMAC_SHA256_CHAIN",
-  "checkpoint_hash": "8fb693f7976988f4200e9cca46f3c989acfb09047a65b57030cca8042fcc6a28"
-}
