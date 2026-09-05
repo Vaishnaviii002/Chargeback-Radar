@@ -1,281 +1,244 @@
-Chargeback Radar converts calibrated payment risk and merchant-side operational failures into explainable, lowest-expected-cost defensive recommendations—without automatically taking a financial action.
+# Chargeback Radar
 
-Built for Razorpay AI Buildathon 2026 · Track 02: AI Risk Manager.
+Chargeback Radar is a defense-only merchant risk manager that estimates 120-day card-payment chargeback risk, explains the estimate, and recommends a bounded response without executing a financial action.
 
-Why this exists
+Built for the **Razorpay AI Build Hackathon 2026 — Track 02: AI Risk Manager**.
 
-A conventional fraud score answers only one question: “How risky is this payment?” A merchant still needs to decide whether to monitor it, prepare evidence, review it, or recommend a refund—and every unnecessary intervention has a customer and operational cost.
+> All evaluation data is synthetic. Reported performance does not establish real-world effectiveness. Razorpay integration is Test Mode only, and Test Mode payments never enter the held-out metrics.
 
-Chargeback Radar joins three layers:
+## The merchant problem
 
-A calibrated LightGBM model estimates capture-time chargeback probability.
+A classifier can rank payment risk, but a merchant still needs a calibrated probability, an auditable reason for prioritization, a cost-aware response, and grounded evidence. Unnecessary intervention also creates review cost and customer friction. Chargeback Radar joins those decisions while leaving every consequential action with a human.
 
-Deterministic rules identify explainable payment and merchant-operation failures.
+It goes beyond a classifier through:
 
-A policy engine selects the defensive action with the lowest expected cost under declared assumptions.
+- isotonic probability calibration and an explicit review-capacity policy;
+- deterministic capture-time and post-payment rules;
+- TreeSHAP explanations with additivity checks;
+- safe analyst wording clearly separated from dispute evidence;
+- timestamp-safe support-text signals and a controlled ablation;
+- a grounded Evidence Copilot with exact fact citations and deterministic fallback;
+- tamper-evident audit records;
+- Razorpay Test Mode Checkout, server-side signature verification, verified-payment scoring, and signed idempotent webhooks.
 
-The system is explicitly defense-only. It produces decision support, requires human approval for consequential actions, and never executes a refund automatically.
+The product never captures, refunds, files a dispute, contacts a customer, or submits evidence automatically.
 
-Five-minute judge path
+## Architecture
 
-Open the dashboard and inspect held-out precision, recall, calibration and false-positive cost.
+```mermaid
+flowchart LR
+    A[Synthetic payments and delayed outcomes] --> B[Customer-disjoint temporal split]
+    B --> C[Capture-time features]
+    C --> D[LightGBM 0.1.0]
+    D --> E[Isotonic calibration]
+    E --> F[Bounded cost policy]
+    D --> G[TreeSHAP and safe explanation text]
+    H[Timestamp-safe support events] --> I[Three binary signals]
+    I --> J[Controlled ablation]
+    K[Trusted operational facts] --> L[Evidence Copilot]
+    M[Razorpay Test Checkout] --> N[Server HMAC verification]
+    N --> O[Provider binding and calibrated scoring]
+    P[Signed webhook raw bytes] --> Q[HMAC, allowlist and SQLite replay guard]
+    F --> R[Human analyst]
+    G --> R
+    L --> R
+    O --> R
+    Q --> R
+```
 
-Change review cost and intervention-effectiveness assumptions in the policy lab.
+The browser receives only the public Test key and sends the Checkout payment ID and signature to the backend. Server secrets, model artifacts, trusted facts, webhook verification, and SQLite stores remain on the backend. See [Architecture](docs/ARCHITECTURE.md) and [Security](docs/SECURITY.md).
 
-Compare conservative, expected and optimistic benefit scenarios.
+## Data and evaluation design
 
-Open a transaction to see its calibrated probability, deterministic rule findings and TreeSHAP factors.
+The fixed-seed generator creates 80,000 synthetic payments. The exact target is `chargeback_within_120d`: whether a synthetic payment receives a chargeback inside the 120-day observation window.
 
-Confirm that every metric comes from the untouched test set through reports/submission_manifest.json.
+| Partition | Period | Rows | Positives | Purpose |
+|---|---|---:|---:|---|
+| Train | Months 1–9 | 59,048 | 420 | Fit preprocessing and LightGBM |
+| Calibration | Month 10 | 8,779 | 71 | Select and fit calibration |
+| Held-out test | Months 11–12 | 12,173 | 87 | Final model and policy reporting |
 
-Architecture
+Customers are disjoint across all three partitions. Only information observable at payment capture enters the model. Customer identity, final chargeback outcome, dispute state/reason, and future delivery or refund information are forbidden features. Post-payment rules operate separately at an explicit `as_of` time.
 
-flowchart TD
-    A["Synthetic payments + delayed outcomes"] --> B["Customer-disjoint time split"]
-    B --> C["Capture-time features"]
-    C --> D["LightGBM risk model"]
-    D --> E["Probability calibration"]
-    E --> F["Expected-cost policy"]
-    G["Payment + lifecycle events"] --> H["Deterministic rule engines"]
-    H --> I["Explainable findings"]
-    D --> J["TreeSHAP factors"]
-    I --> K["Human approval boundary"]
-    J --> K
-    F --> K
-    K --> L["Monitor · Evidence · Review · Refund recommendation"]
+## Canonical held-out results
 
-Honest held-out results
-
-The following block is generated from reports/submission_manifest.json. Do not edit the values manually; run python -m src.readme_metrics or the full pipeline.
-
-<!-- CHARGEBACK_RADAR_METRICS:START -->
-| Measure | Generated result |
+| Measure | Result |
 |---|---:|
-| Synthetic payments | 80,000 |
-| Synthetic chargebacks | 578 |
-| Overall base rate | 0.722% |
-| Held-out payments | 12,173 |
-| Held-out chargebacks | 87 |
-| Average Precision | 14.93% |
-| Random/base-rate baseline | 0.715% |
-| AP lift over baseline | 20.9× |
-| Precision | 19.47% |
-| Recall | 58.62% |
-| F1 | 0.2923 |
-| Brier score before calibration | 0.015723 |
-| Brier score after calibration | 0.006258 |
-| False-positive count | 211 |
-| Detector false-positive cost | ₹31,650 |
-| Policy gross avoided loss | ₹202,250 |
-| Policy intervention cost | ₹65,382 |
-| Policy estimated net benefit | ₹136,868 |
-| Effectiveness sensitivity range | ₹92,805 to ₹177,416 |
+| Test base rate | 0.7147% |
+| Calibrated Average Precision | 14.9264% |
+| Calibrated Brier score | 0.006258 |
+| Expected calibration error | 0.001502 |
+| Precision | 19.466% |
+| Recall | 58.621% |
+| F1 | 0.292264 |
+| Precision at 1% | 18.033% |
+| Precision at 5% | 11.166% |
 
-_Generated from the fixed-seed pipeline; monetary values are synthetic held-out backtest estimates._
-<!-- CHARGEBACK_RADAR_METRICS:END -->
+The fixed operating threshold is selected around a 2% review-capacity constraint. Deterministic merchant-error overrides can increase the full policy intervention rate beyond the model-only capacity. At the canonical model threshold, 51 chargebacks are flagged, 36 are missed, and 211 legitimate payments are false positives.
 
-Accuracy is intentionally not used as a headline metric because chargebacks are rare. Average Precision, precision, recall, calibration and false-positive cost are more informative for this imbalanced problem.
+The synthetic cost policy assumes a ₹1,500 chargeback fee, ₹150 manual-review cost, ₹40 evidence cost, 8% customer-friction rate, 45% evidence recovery, 65% review prevention, 35% refund cost, and ₹800 risk-program penalty. Under those declared assumptions, detector false-positive cost is ₹31,650. Exposure and benefit values are backtest estimates—not realized savings or guarantees.
 
-Evaluation design
+## Explanations, evidence, and support signals
 
-Partition
+Every held-out payment has a deterministic TreeSHAP record aligned to model version `0.1.0` and explanation version `shap-v1`. Risk-increasing and risk-decreasing contributions preserve feature values and ordering, and reconstruction error is effectively zero.
 
-Time window
+**Model explanation — not evidence.** SHAP factors describe contributions to the model estimate. They do not establish causation, fraud, customer intent, or dispute facts.
 
-Purpose
+Evidence Copilot is a separate grounded workflow. It can use only supplied trusted facts, must cite exact fact IDs, preserves the deterministic recommended action, reports missing evidence, keeps customer messages draft-only, requires human approval, and returns `action_executed=false`. Optional OpenAI phrasing is guarded; disabling it or any provider failure selects the deterministic fallback.
 
-Train
+Support processing exposes exactly three binary signals:
 
-Months 1–9
+- `intent_to_cancel`
+- `non_receipt_complaint`
+- `dissatisfaction`
 
-Fit preprocessing and LightGBM
+Only support events observable by the scoring timestamp are compiled. The pipeline removes PII, resists prompt injection, hashes safe inputs for caching, and never persists raw text in the signal report. It observed 8,270 events and excluded 5,297 future events.
 
-Calibration
+The controlled enhanced-model ablation raised calibrated AP from 0.149264 to 0.152772 and recall from 58.621% to 63.218%. Precision decreased slightly from 19.466% to 19.366% (−0.099 percentage points); Brier score improved by about 0.000058. This synthetic experiment demonstrates methodology, not real-world generalization.
 
-Month 10
+## Razorpay Test Mode
 
-Select and fit probability calibration
+The primary demonstration flow is:
 
-Held-out test
+1. the backend creates an INR Test Mode order under a canonical idempotency key;
+2. the frontend opens the official Razorpay Checkout script using the returned public Test key;
+3. the backend verifies `HMAC-SHA256(server_order_id|payment_id)` in constant time before any provider fetch or scoring;
+4. server-side order/payment lookup binds IDs, amount, INR currency, card method, and authorized/captured status;
+5. the existing model, preprocessor, and isotonic calibrator score merchant-declared capture-time context;
+6. the response keeps `human_approval_required=true`, `financial_action_executed=false`, and synthetic evaluation separate.
 
-Months 11–12
+Webhook ingestion streams at most 1 MB of exact raw bytes, verifies its HMAC before JSON parsing, applies an eight-event allowlist, atomically rejects event-ID/content conflicts, returns idempotent replays, and stores only event ID, payload hash, type, status, and timestamps. A signed request was verified locally and through a temporary public HTTPS tunnel; a genuine provider-originated webhook delivery was not observed.
 
-Report final model and policy results
+## Local setup
 
-Customer IDs are disjoint across all three partitions. The test set is untouched during model fitting and calibration. A fixed seed makes the full pipeline reproducible.
+Prerequisites: Git, Python 3.12+ (the release was also verified on Python 3.14), Node.js 22+, npm, and PowerShell 7+ for the one-command gate.
 
-Only information available at payment capture enters the ML model. Chargeback reason, dispute date/status, future delivery and future refund outcomes are forbidden model inputs. Post-payment shipment and refund events live in data/operations.parquet and are evaluated separately at an explicit as_of timestamp.
-
-Decision policy
-
-For each transaction and action, the policy estimates:
-
-total expected cost
-  = expected remaining chargeback loss
-  + direct intervention cost
-  + expected legitimate-customer friction
-
-It then selects the least-cost defensive recommendation:
-
-Action
-
-Purpose
-
-Automatic execution?
-
-MONITOR
-
-Observe low-risk payments
-
-No action required
-
-PREPARE_EVIDENCE
-
-Assemble defensible payment evidence
-
-No
-
-MANUAL_REVIEW
-
-Route uncertain cases to an operator
-
-No
-
-RECOMMEND_REFUND
-
-Recommend refund for clear merchant errors
-
-Never
-
-Gross avoided loss, remaining chargeback loss, intervention cost, false-positive cost and net benefit are reported separately. LOW/BASE/HIGH effectiveness scenarios are assumptions—not confidence intervals or guaranteed savings.
-
-Deterministic verification
-
-Capture-time rules include duplicate charges, cancelled-subscription billing, authentication gaps, device/network conflicts, velocity spikes, repeat disputes, unclear descriptors and high-value new accounts.
-
-Post-payment rules include:
-
-SHIPMENT_SLA_BREACHED: activates only after a promised shipment deadline and recommends evidence preparation.
-
-REFUND_NOT_PROCESSED: activates only after a promised refund deadline and can recommend a refund with human approval.
-
-The lifecycle engine deliberately ignores precomputed outcome flags and reconstructs what was knowable at the supplied as_of time.
-
-Reproduce everything
-
-Backend setup
-
+```powershell
+git clone https://github.com/Vaishnaviii002/chargeback-Radar.git
+Set-Location chargeback-Radar
 python -m venv .venv
-
-Windows PowerShell:
-
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+npm --prefix frontend ci
+Copy-Item .env.example .env
+Copy-Item frontend/.env.example frontend/.env
+```
 
-macOS/Linux:
+Model binaries and generated data are intentionally ignored. If they are absent, reproduce the deterministic baseline first:
 
-source .venv/bin/activate
-pip install -r requirements.txt
+```powershell
+.\.venv\Scripts\python.exe -m src.pipeline
+```
 
-Regenerate every dataset, artifact and report:
+Run the backend and frontend in separate PowerShell terminals:
 
-python -m src.pipeline
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn src.api:app --host 127.0.0.1 --port 8000
+```
 
-This finishes by writing reports/submission_manifest.json, including artifact sizes and SHA-256 hashes.
+```powershell
+npm --prefix frontend run dev -- --host 127.0.0.1
+```
 
-Run the API:
+Open `http://127.0.0.1:5173`; API docs are at `http://127.0.0.1:8000/docs`.
 
-uvicorn src.api:app --reload
+## Environment variables
 
-API documentation is available at http://127.0.0.1:8000/docs.
+Start from `.env.example`; its secret values are intentionally blank.
 
-Frontend setup
+| Group | Variables |
+|---|---|
+| Optional OpenAI | `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TIMEOUT_SECONDS`, `OPENAI_MAX_RETRIES` |
+| AI feature switches | `EVIDENCE_AI_ENABLED`, `MODEL_EXPLANATION_AI_ENABLED`, `SUPPORT_SIGNAL_AI_ENABLED` |
+| Evidence/runtime | `EVIDENCE_CACHE_DIR`, `EVIDENCE_CACHE_TTL_SECONDS`, `EVIDENCE_FALLBACK_CACHE_TTL_SECONDS`, `EVIDENCE_AUDIT_PATH`, `EVIDENCE_AUDIT_HMAC_KEY` |
+| Support/runtime | `SUPPORT_SIGNAL_CACHE_DIR`, `SUPPORT_SIGNAL_CACHE_TTL_SECONDS`, `SUPPORT_SIGNAL_FALLBACK_CACHE_TTL_SECONDS` |
+| Razorpay server | `RAZORPAY_INTEGRATION_ENABLED`, `RAZORPAY_TEST_MODE`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_TIMEOUT_SECONDS`, `RAZORPAY_WEBHOOK_ENABLED`, `RAZORPAY_WEBHOOK_SECRET` |
+| Backend CORS | `BACKEND_ALLOWED_ORIGINS` (comma-separated exact origins; no wildcard) |
+| Frontend build | `VITE_API_URL` (public backend URL only) |
 
-cd frontend
-npm install
-npm run dev
+Never put `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, an audit HMAC key, or an OpenAI key in `frontend/.env` or any `VITE_` variable. `RAZORPAY_TEST_MODE=false` is rejected.
 
-Open http://127.0.0.1:5173.
+## Verification and regeneration
 
-Verification
+Run the complete, offline-safe release gate:
 
-python -m pytest -q
-cd frontend
-npm run build
+```powershell
+.\scripts\verify_release.ps1
+```
 
-The Vite chunk-size notice is currently a non-blocking performance warning; it is recorded in notes/what_broke.md rather than hidden.
+It validates report identity, held-out alignment, SHAP additivity and ordering, support-signal safety, ablation/model-card consistency, OpenAPI uniqueness, intended routes, ignore rules, credential/tunnel hygiene, all backend tests, frontend lint and the production build, and Git whitespace. It forces optional external integrations off and requires no real secret.
 
-Important API routes
+Individual commands:
 
-Route
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+npm --prefix frontend run build
+git diff --check
+```
 
-Purpose
+Full deterministic report regeneration:
 
-GET /api/health
+```powershell
+.\.venv\Scripts\python.exe -m src.pipeline
+.\.venv\Scripts\python.exe -m src.explain
+.\.venv\Scripts\python.exe -m src.model_explanation_service
+.\.venv\Scripts\python.exe -m src.support_events
+.\.venv\Scripts\python.exe -m src.support_signal_report
+.\.venv\Scripts\python.exe -m src.ablation
+.\.venv\Scripts\python.exe -m src.model_card
+```
 
-Service health
+See [Reproducibility](docs/REPRODUCIBILITY.md) for expected identities and acceptable third-party warnings. CI performs the baseline rebuild and the same release gate without external API or financial calls.
 
-GET /api/metrics
+## Deployment
 
-Model, calibration and default-policy results
+The root `Dockerfile` creates a non-root production backend image, regenerates required ignored model/data artifacts during the image build, disables optional integrations by default, starts Uvicorn without reload, and includes an `/api/health` health check. Build and run locally:
 
-POST /api/score
+```powershell
+docker build -t chargeback-radar-api .
+docker run --rm -p 8000:8000 chargeback-radar-api
+```
 
-Score one payment and return defensive guidance
+Deploy `frontend/dist` to a static host after setting `VITE_API_URL` at build time, and set `BACKEND_ALLOWED_ORIGINS` to that exact HTTPS origin. Add optional secrets only through the provider’s secret manager. Detailed steps are in [Reproducibility](docs/REPRODUCIBILITY.md) and [Security](docs/SECURITY.md).
 
-POST /api/simulate
+- Stable backend URL: **Not deployed yet**
+- Stable frontend URL: **Not deployed yet**
+- Demo video URL: **Not recorded yet (Phase 10)**
 
-Recalculate policy economics
+No temporary tunnel is production hosting.
 
-GET /api/transactions
+## Repository map
 
-Review the policy-ranked queue
+```text
+src/                     model, policy, explanation, evidence and API code
+frontend/                React/TypeScript/Vite dashboard
+artifacts/               tracked schemas/metadata; ignored generated models
+reports/                 canonical synthetic evaluation and governance reports
+tests/                   backend, leakage, governance and Razorpay tests
+scripts/                 one-command release verification
+docs/                    architecture, security, reproducibility and demo runbook
+.github/workflows/       offline-safe CI
+Dockerfile               production backend image
+```
 
-GET /api/policy/frontier
+## Known limitations
 
-Review-cost sensitivity
+- All model and policy evaluation uses synthetic data; it cannot establish production effectiveness or realized savings.
+- The enhanced support-signal model has slightly lower precision despite improved AP, recall, and Brier score.
+- SHAP is descriptive of model behavior, not causal and not dispute evidence.
+- Razorpay is Test Mode only. Test Mode results are excluded from held-out metrics.
+- No genuine Razorpay provider webhook delivery was observed; only signed local and tunneled requests were verified.
+- Optional OpenAI use changes wording/extraction delivery, not authority; deterministic fallback remains the safe default.
+- The Docker configuration was statically reviewed, but its image build and runtime health check were not verified locally because the Docker daemon was unavailable. No stable hosted URL is claimed until external authentication and deployment are completed.
+- Automated browser smoke and visual QA were not run because no in-app browser target was available; the production frontend build and API health check were verified locally.
 
-GET /api/policy/effectiveness
+## Five-minute judge path
 
-LOW/BASE/HIGH effectiveness sensitivity
+1. Open the dashboard and state the synthetic-data and defense-only boundaries.
+2. Show held-out AP, calibration, precision/recall, and the cost-policy assumptions.
+3. Open a high-risk held-out case and show **Model explanation — not evidence**.
+4. Generate grounded Evidence Copilot output, point to exact fact citations, and show human approval plus `action_executed=false`.
+5. Explain the three timestamp-safe support signals and the honest precision/recall ablation trade-off.
+6. Complete a Razorpay Test Mode Checkout, show server verification and calibrated scoring, then show webhook signature/replay handling.
 
-Repository map
-
-src/
-  generate.py                  synthetic customers and payments
-  outcomes.py                  delayed disputes and reason codes
-  operations.py                isolated shipment/refund lifecycle events
-  features.py                  capture-time feature engineering
-  train.py                     customer-disjoint LightGBM training
-  calibrate.py                 probability calibration
-  evaluate.py                  held-out metrics and curves
-  decide.py                    expected-cost action policy
-  rules.py                     capture-time deterministic rules
-  post_payment_rules.py        time-aware lifecycle rules
-  explain.py                   TreeSHAP explanations
-  policy_lab.py                review-cost frontier
-  effectiveness_sensitivity.py assumption stress test
-  pipeline.py                  one-command reproducibility
-frontend/                      React + TypeScript dashboard
-reports/                       generated evaluation evidence
-artifacts/                     generated model metadata and bundles
-tests/                         leakage, policy, rules and pipeline tests
-notes/what_broke.md            honest engineering incident log
-
-Limitations
-
-All current data and monetary outcomes are synthetic backtests.
-
-No claim is made about realised savings on Razorpay production traffic.
-
-Intervention effectiveness is declared and stress-tested, not learned from production experiments.
-
-Synthetic behaviour can validate architecture and evaluation discipline, but not real-world generalisation.
-
-The current workflow is decision support and keeps consequential actions behind human approval.
-
-Build status
-
-Implemented: reproducible synthetic data, leakage-safe evaluation, calibrated model, deterministic rules, TreeSHAP, cost policy, sensitivity analysis, API, dashboard and automated tests.
-
-Planned submission hardening: AI-assisted evidence drafting, audit/fallback controls, Razorpay Test Mode adapter, deployment QA and the final five-minute demo.
+Use the exact recording sequence and stop commands in [Demo Runbook](docs/DEMO_RUNBOOK.md).

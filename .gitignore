@@ -1,6 +1,8 @@
 # Environment variables and secrets
 .env
 .env.local
+.env.*
+!.env.example
 
 # Python virtual environment
 .venv/
@@ -20,6 +22,10 @@ artifacts/*.txt
 
 # Runtime audit files
 audit.jsonl
+*.db
+*.sqlite
+*.sqlite3
+*.log
 
 # Frontend generated files
 frontend/node_modules/

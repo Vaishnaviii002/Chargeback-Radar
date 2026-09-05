@@ -1,8 +1,10 @@
 import json
+import os
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from src.razorpay_api import (
     router as razorpay_router,
@@ -13,6 +15,7 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 from src.razorpay_normalizer import (
@@ -40,9 +43,76 @@ from src.model_explanation_api import (
 )
 
 
-DATA_DIR = Path("data")
-REPORTS_DIR = Path("reports")
-ARTIFACTS_DIR = Path("artifacts")
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+REPORTS_DIR = ROOT / "reports"
+ARTIFACTS_DIR = ROOT / "artifacts"
+
+# Match the rest of the backend's local configuration behavior while
+# preserving deployment-provided environment variables.
+load_dotenv(ROOT / ".env", override=False)
+
+DEFAULT_ALLOWED_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+)
+
+
+def _parse_allowed_origins(
+    raw_value: str | None,
+) -> list[str]:
+    candidates = (
+        raw_value.split(",")
+        if raw_value and raw_value.strip()
+        else list(DEFAULT_ALLOWED_ORIGINS)
+    )
+    origins: list[str] = []
+
+    for candidate in candidates:
+        origin = candidate.strip().rstrip("/")
+
+        if not origin:
+            continue
+
+        if origin == "*":
+            raise RuntimeError(
+                "Wildcard CORS origins are not permitted."
+            )
+
+        parsed = urlsplit(origin)
+
+        try:
+            parsed.port
+        except ValueError as error:
+            raise RuntimeError(
+                "BACKEND_ALLOWED_ORIGINS contains an "
+                "invalid origin."
+            ) from error
+
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.hostname is None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise RuntimeError(
+                "BACKEND_ALLOWED_ORIGINS contains an "
+                "invalid origin."
+            )
+
+        if origin not in origins:
+            origins.append(origin)
+
+    if not origins:
+        raise RuntimeError(
+            "At least one CORS origin is required."
+        )
+
+    return origins
 
 app = FastAPI(
     title="Chargeback Radar API",
@@ -55,10 +125,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_parse_allowed_origins(
+        os.getenv("BACKEND_ALLOWED_ORIGINS")
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

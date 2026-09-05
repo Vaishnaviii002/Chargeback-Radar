@@ -97,8 +97,33 @@ function App() {
   }, []);
 
   useEffect(() => {
-    void loadMetrics();
-  }, [loadMetrics]);
+    let cancelled = false;
+
+    void fetchMetrics()
+      .then((response) => {
+        if (!cancelled) {
+          setMetrics(response);
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Could not load dashboard metrics.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -200,7 +225,7 @@ function App() {
       <main className="dashboard">
         <section className="page-heading">
           <div>
-            <p className="eyebrow">Razorpay AI Buildathon · Track 02</p>
+            <p className="eyebrow">Razorpay AI Build Hackathon · Track 02</p>
 
             <h1>Risk command center</h1>
 
