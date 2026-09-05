@@ -351,6 +351,9 @@ def test_evaluation_contains_required_metrics() -> None:
         calibration_probability=(
             calibration_probability
         ),
+        test_identifiers=np.array(
+            [f"pay_{index}" for index in range(10)]
+        ),
         test_labels=test_labels,
         test_probability=(
             test_probability

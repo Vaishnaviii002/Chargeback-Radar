@@ -74,6 +74,8 @@ Customers are disjoint across all three partitions. Only information observable 
 | Precision at 1% | 18.033% |
 | Precision at 5% | 11.166% |
 
+Precision-at-fraction metrics resolve equal calibrated probabilities with an outcome-blind deterministic BLAKE2b hash of the payment ID. This keeps isotonic-calibration ties reproducible across operating systems without adding identity to the model.
+
 The fixed operating threshold is selected around a 2% review-capacity constraint. Deterministic merchant-error overrides can increase the full policy intervention rate beyond the model-only capacity. At the canonical model threshold, 51 chargebacks are flagged, 36 are missed, and 211 legitimate payments are false positives.
 
 The synthetic cost policy assumes a ₹1,500 chargeback fee, ₹150 manual-review cost, ₹40 evidence cost, 8% customer-friction rate, 45% evidence recovery, 65% review prevention, 35% refund cost, and ₹800 risk-program penalty. Under those declared assumptions, detector false-positive cost is ₹31,650. Exposure and benefit values are backtest estimates—not realized savings or guarantees.

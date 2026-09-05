@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -60,15 +61,53 @@ def calculate_precision_at_fraction(
     labels: np.ndarray,
     probabilities: np.ndarray,
     fraction: float,
+    *,
+    identifiers: np.ndarray,
 ) -> float:
+    if not (
+        len(labels)
+        == len(probabilities)
+        == len(identifiers)
+    ):
+        raise ValueError(
+            "Labels, probabilities, and identifiers must align."
+        )
+
+    stable_identifiers = np.asarray(
+        identifiers,
+        dtype=str,
+    )
+
+    if len(set(stable_identifiers)) != len(
+        stable_identifiers
+    ):
+        raise ValueError(
+            "Precision-at-fraction identifiers must be unique."
+        )
+
     number_to_select = max(
         1,
         math.ceil(len(labels) * fraction),
     )
 
-    selected_indexes = np.argsort(probabilities)[
-        -number_to_select:
+    # Isotonic calibration intentionally creates probability ties. A
+    # BLAKE2b key derived only from the unique payment ID gives those ties a
+    # platform-independent, outcome-blind order without making an ordinal
+    # payment ID a hidden ranking signal.
+    tie_breakers = [
+        hashlib.blake2b(
+            identifier.encode("utf-8")
+        ).digest()
+        for identifier in stable_identifiers
     ]
+    selected_indexes = sorted(
+        range(len(labels)),
+        key=lambda index: (
+            -float(probabilities[index]),
+            tie_breakers[index],
+            stable_identifiers[index],
+        ),
+    )[:number_to_select]
 
     return float(labels[selected_indexes].mean())
 
@@ -232,6 +271,9 @@ def evaluate_model() -> None:
             test_labels,
             test_probability,
             0.01,
+            identifiers=test_data[
+                "payment_id"
+            ].to_numpy(),
         )
     )
 
@@ -240,6 +282,9 @@ def evaluate_model() -> None:
             test_labels,
             test_probability,
             0.05,
+            identifiers=test_data[
+                "payment_id"
+            ].to_numpy(),
         )
     )
 

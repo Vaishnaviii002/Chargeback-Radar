@@ -65,6 +65,8 @@ The gate fails immediately on a missing stage and checks:
 
 The expected canonical calibrated AP is 0.1492642172 and Brier score is 0.0062581254. Maximum SHAP reconstruction error must remain at or below `1e-8` (the current report is around machine precision). The ablation baseline must match the canonical report exactly.
 
+Isotonic calibration can assign the same probability to many payments. Precision-at-fraction metrics break only those ties with an outcome-blind deterministic BLAKE2b hash of the unique payment ID; payment identity does not enter model fitting or probability estimation. This avoids platform-dependent ordering of equal NumPy values.
+
 The only accepted test warnings are current third-party SHAP/Matplotlib notices about colormap methods and LightGBM TreeExplainer output shape. Project-owned deprecations, duplicate operation IDs, TypeScript errors, or failed assertions are release failures.
 
 ## CI

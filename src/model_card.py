@@ -708,6 +708,8 @@ Calibration-method selection uses the first 70% of month 10 for fitting candidat
 | Flagged payments | {evaluation["flagged_count"]:,} |
 | Flagged rate | {_percent(evaluation["flagged_rate"])} |
 
+Precision-at-fraction metrics use an outcome-blind deterministic BLAKE2b payment-ID tie-break for equal calibrated probabilities. Payment identity is not a model feature.
+
 Accuracy is intentionally not used as the headline metric because the held-out base rate is below one percent.
 
 ## Unseen-customer stress test

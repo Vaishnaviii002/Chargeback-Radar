@@ -174,12 +174,8 @@ def train_model() -> None:
     model.fit(
         X_train_transformed,
         y_train,
-        eval_set=[
-            (
-                X_calibration_transformed,
-                y_calibration,
-            )
-        ],
+        eval_X=X_calibration_transformed,
+        eval_y=y_calibration,
         eval_metric="average_precision",
         callbacks=[
             lgb.early_stopping(

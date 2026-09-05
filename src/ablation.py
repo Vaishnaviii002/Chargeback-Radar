@@ -598,6 +598,7 @@ def _apply_selected_calibrator(
 def _evaluate_probabilities(
     *,
     calibration_probability: np.ndarray,
+    test_identifiers: np.ndarray,
     test_labels: np.ndarray,
     test_probability: np.ndarray,
 ) -> dict[str, float | int]:
@@ -671,6 +672,7 @@ def _evaluate_probabilities(
             test_labels,
             test_probability,
             0.01,
+            identifiers=test_identifiers,
         )
     )
 
@@ -679,6 +681,7 @@ def _evaluate_probabilities(
             test_labels,
             test_probability,
             0.05,
+            identifiers=test_identifiers,
         )
     )
 
@@ -816,12 +819,8 @@ def _train_variant(
     model.fit(
         X_train_transformed,
         y_train,
-        eval_set=[
-            (
-                X_calibration_transformed,
-                y_calibration,
-            )
-        ],
+        eval_X=X_calibration_transformed,
+        eval_y=y_calibration,
         eval_metric="average_precision",
         callbacks=[
             lgb.early_stopping(
@@ -885,6 +884,9 @@ def _train_variant(
         calibration_probability=(
             calibration_probability
         ),
+        test_identifiers=test[
+            "payment_id"
+        ].to_numpy(),
         test_labels=(
             y_test.to_numpy()
         ),

@@ -53,6 +53,40 @@ def _predictions() -> pd.DataFrame:
     )
 
 
+def test_precision_at_fraction_tie_break_is_row_order_independent() -> None:
+    labels = np.array([1, 0, 1, 0, 1, 0])
+    probabilities = np.full(6, 0.25)
+    identifiers = np.array(
+        [f"pay_{index}" for index in range(6)]
+    )
+    permutation = np.array([5, 2, 0, 4, 1, 3])
+
+    expected = calculate_precision_at_fraction(
+        labels,
+        probabilities,
+        0.5,
+        identifiers=identifiers,
+    )
+    reordered = calculate_precision_at_fraction(
+        labels[permutation],
+        probabilities[permutation],
+        0.5,
+        identifiers=identifiers[permutation],
+    )
+
+    assert reordered == expected
+
+
+def test_precision_at_fraction_requires_unique_identifiers() -> None:
+    with pytest.raises(ValueError, match="must be unique"):
+        calculate_precision_at_fraction(
+            np.array([0, 1]),
+            np.array([0.5, 0.5]),
+            0.5,
+            identifiers=np.array(["pay_same", "pay_same"]),
+        )
+
+
 def test_report_identity_and_controls() -> None:
     report = _report()
 
@@ -378,6 +412,9 @@ def test_reported_metrics_recalculate_exactly(
                 labels,
                 probability,
                 0.01,
+                identifiers=predictions[
+                    "payment_id"
+                ].to_numpy(),
             )
         ),
         "precision_at_5_percent": (
@@ -385,6 +422,9 @@ def test_reported_metrics_recalculate_exactly(
                 labels,
                 probability,
                 0.05,
+                identifiers=predictions[
+                    "payment_id"
+                ].to_numpy(),
             )
         ),
         "flagged_count": int(

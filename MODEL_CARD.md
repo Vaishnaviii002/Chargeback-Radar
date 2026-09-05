@@ -61,6 +61,8 @@ Calibration-method selection uses the first 70% of month 10 for fitting candidat
 | Flagged payments | 262 |
 | Flagged rate | 2.152% |
 
+Precision-at-fraction metrics use an outcome-blind deterministic BLAKE2b payment-ID tie-break for equal calibrated probabilities. Payment identity is not a model feature.
+
 Accuracy is intentionally not used as the headline metric because the held-out base rate is below one percent.
 
 ## Unseen-customer stress test
@@ -90,7 +92,7 @@ The enhanced model adds exactly:
 | F1 | 0.292264 | 0.296496 | +0.004232 |
 | Brier score | 0.006258 | 0.006200 | -0.000058 |
 | Calibration error | 0.001502 | 0.001241 | -0.000261 |
-| Precision at top 1% | 18.033% | 22.951% | +4.918% |
+| Precision at top 1% | 18.033% | 18.033% | +0.000% |
 | Precision at top 5% | 11.166% | 11.494% | +0.328% |
 
 The enhanced result is reported without cherry-picking: Average Precision, recall and Brier score improved, while precision changed by -0.099%.
