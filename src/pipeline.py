@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -31,6 +33,22 @@ PIPELINE_STEPS = [
         "Build effectiveness sensitivity",
         "src.effectiveness_sensitivity",
     ),
+    ("Generate SHAP explanations", "src.explain"),
+    (
+        "Generate deterministic explanation text",
+        "src.model_explanation_service",
+    ),
+    ("Generate timestamped support events", "src.support_events"),
+    (
+        "Generate sanitized support signals",
+        "src.support_signal_report",
+    ),
+    ("Run controlled support-signal ablation", "src.ablation"),
+    (
+        "Run deterministic evidence guardrails",
+        "src.evidence_redteam",
+    ),
+    ("Generate model card", "src.model_card"),
 ]
 
 REQUIRED_OUTPUTS = [
@@ -53,7 +71,29 @@ REQUIRED_OUTPUTS = [
     "reports/effectiveness_sensitivity.json",
     "reports/test_scored.parquet",
     "reports/test_policy.parquet",
+    "reports/test_explanations.parquet",
+    "reports/test_model_explanations.parquet",
+    "data/support_events.parquet",
+    "data/support_scoring.parquet",
+    "reports/support_signals.parquet",
+    "reports/ablation.json",
+    "reports/ablation_test_predictions.parquet",
+    "reports/evidence_guardrail_eval.json",
+    "reports/model_card.json",
+    "MODEL_CARD.md",
 ]
+
+OFFLINE_REPRODUCTION_ENV = {
+    "PYTHONIOENCODING": "utf-8",
+    "PYTHONUTF8": "1",
+    # Stable build time immediately after the synthetic 2025 period.
+    "SOURCE_DATE_EPOCH": "1767225600",
+    "EVIDENCE_AI_ENABLED": "false",
+    "MODEL_EXPLANATION_AI_ENABLED": "false",
+    "SUPPORT_SIGNAL_AI_ENABLED": "false",
+    "RAZORPAY_INTEGRATION_ENABLED": "false",
+    "RAZORPAY_WEBHOOK_ENABLED": "false",
+}
 
 
 @dataclass(frozen=True)
@@ -170,6 +210,38 @@ def build_submission_manifest(
         root,
         "reports/effectiveness_sensitivity.json",
     )
+    ablation = read_json(root, "reports/ablation.json")
+    model_card = read_json(root, "reports/model_card.json")
+    evidence_guardrails = read_json(
+        root,
+        "reports/evidence_guardrail_eval.json",
+    )
+    shap_explanations = pd.read_parquet(
+        root / "reports/test_explanations.parquet",
+        columns=["explanation_version"],
+    )
+    text_explanations = pd.read_parquet(
+        root / "reports/test_model_explanations.parquet",
+        columns=["text_explanation_version"],
+    )
+
+    shap_versions = sorted(
+        shap_explanations["explanation_version"]
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+    text_versions = sorted(
+        text_explanations["text_explanation_version"]
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+
+    if len(shap_versions) != 1 or len(text_versions) != 1:
+        raise ValueError(
+            "Explanation reports must each contain exactly one version."
+        )
 
     artifact_inventory = []
 
@@ -187,6 +259,14 @@ def build_submission_manifest(
         "schema_version": "1.0",
         "project": "Chargeback Radar",
         "submission_track": "Razorpay AI Buildathon Track 02",
+        "versions": {
+            "model": model["model_version"],
+            "dataset": None,
+            "shap_explanation": shap_versions[0],
+            "text_explanation": text_versions[0],
+            "evidence_schema": evidence_guardrails["schema_version"],
+            "razorpay_normalization": "razorpay-normalizer-v1",
+        },
         "generated_at_utc": datetime.now(
             timezone.utc
         ).isoformat(),
@@ -237,11 +317,34 @@ def build_submission_manifest(
         "default_policy": policy,
         "review_cost_frontier": frontier,
         "effectiveness_sensitivity": effectiveness,
+        "support_signal_ablation": ablation,
+        "model_card": {
+            "version": model_card["model_card_version"],
+            "path": "MODEL_CARD.md",
+            "json_path": "reports/model_card.json",
+        },
+        "evidence_guardrails": {
+            "report_path": "reports/evidence_guardrail_eval.json",
+            "summary": evidence_guardrails["summary"],
+        },
         "artifact_inventory": artifact_inventory,
         "defense_only_controls": {
             "automatic_financial_actions": False,
             "human_approval_required": True,
             "post_payment_rules_isolated_from_model_features": True,
+        },
+        "razorpay_test_mode": {
+            "real_money_used": False,
+            "automatic_financial_actions": False,
+            "checkout_signature_verified_server_side": True,
+            "demo_data_excluded_from_canonical_evaluation": True,
+            "normalization_version": "razorpay-normalizer-v1",
+        },
+        "validation": {
+            "status": "NOT_RUN_BY_PIPELINE",
+            "release_command": "python scripts/verify_release.py",
+            "backend_test_command": "python -m pytest -q",
+            "frontend_build_command": "npm --prefix frontend run build",
         },
     }
 
@@ -250,6 +353,7 @@ def run_step(
     root: Path,
     name: str,
     module: str,
+    environment_overrides: dict[str, str] | None = None,
 ) -> StepResult:
     print("\n" + "=" * 72)
     print(f"RUNNING: {name}")
@@ -259,10 +363,14 @@ def run_step(
     started = time.perf_counter()
 
     try:
+        environment = os.environ.copy()
+        environment.update(OFFLINE_REPRODUCTION_ENV)
+        environment.update(environment_overrides or {})
         subprocess.run(
             [sys.executable, "-m", module],
             cwd=root,
             check=True,
+            env=environment,
         )
     except subprocess.CalledProcessError as error:
         duration = time.perf_counter() - started
@@ -282,19 +390,68 @@ def run_step(
     )
 
 
+def write_json_atomic(
+    path: Path,
+    payload: dict[str, Any],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    temporary_path: Path | None = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as file:
+            json.dump(payload, file, indent=2)
+            file.write("\n")
+            file.flush()
+            os.fsync(file.fileno())
+            temporary_path = Path(file.name)
+
+        temporary_path.replace(path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+
+
 def run_pipeline(root: Path = REPO_ROOT) -> Path:
     started = time.perf_counter()
     step_results = []
 
-    for name, module in PIPELINE_STEPS:
-        step_results.append(run_step(root, name, module))
+    with tempfile.TemporaryDirectory(
+        prefix="chargeback-radar-pipeline-"
+    ) as runtime_directory:
+        isolated_runtime = Path(runtime_directory)
+        environment_overrides = {
+            "EVIDENCE_CACHE_DIR": str(
+                isolated_runtime / "evidence_cache"
+            ),
+            "EVIDENCE_AUDIT_PATH": str(
+                isolated_runtime / "evidence_audit.jsonl"
+            ),
+            "SUPPORT_SIGNAL_CACHE_DIR": str(
+                isolated_runtime / "support_signal_cache"
+            ),
+        }
+
+        for name, module in PIPELINE_STEPS:
+            step_results.append(
+                run_step(
+                    root,
+                    name,
+                    module,
+                    environment_overrides,
+                )
+            )
 
     manifest = build_submission_manifest(root, step_results)
     output_path = root / MANIFEST_PATH
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, "w", encoding="utf-8") as file:
-        json.dump(manifest, file, indent=2)
+    write_json_atomic(output_path, manifest)
 
     duration = time.perf_counter() - started
     evaluation = manifest["held_out_evaluation"]
@@ -314,7 +471,7 @@ def run_pipeline(root: Path = REPO_ROOT) -> Path:
     )
     print(
         "Policy net benefit:   "
-        "₹"
+        "INR "
         f"{policy['costs']['estimated_net_benefit_rupees']:,.2f}"
     )
     print(f"Manifest:             {MANIFEST_PATH}")

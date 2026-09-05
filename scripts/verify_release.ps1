@@ -22,6 +22,8 @@ else {
 # Force every optional external integration into its deterministic, offline
 # mode. Values are never printed by this script.
 $env:EVIDENCE_AI_ENABLED = "false"
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
 $env:MODEL_EXPLANATION_AI_ENABLED = "false"
 $env:SUPPORT_SIGNAL_AI_ENABLED = "false"
 $env:RAZORPAY_INTEGRATION_ENABLED = "false"

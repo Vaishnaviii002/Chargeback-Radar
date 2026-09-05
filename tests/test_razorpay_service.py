@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import json
+import sqlite3
 
 import pytest
 from pydantic import SecretStr, ValidationError
@@ -13,6 +15,7 @@ from src.razorpay_normalizer import (
     RazorpayMerchantRiskContext,
 )
 from src.razorpay_service import (
+    LEGACY_CALIBRATION_VERSION,
     RazorpayOperationFailedError,
     RazorpayOrderIntent,
     RazorpayRiskService,
@@ -168,6 +171,7 @@ def _score_result() -> RiskScoreResult:
             "RECOMMEND_REFUND": 2500.0,
         },
         model_version="0.1.0",
+        calibration_version="0.1.0",
         calibration_method="isotonic",
         requires_human_approval=False,
         action_executed=False,
@@ -390,6 +394,57 @@ def test_payment_score_is_idempotently_replayed(
         first.score.model_dump()
         == second.score.model_dump()
     )
+
+
+def test_legacy_payment_score_is_safely_replayed(
+    tmp_path,
+) -> None:
+    service, _, calls = _service(tmp_path)
+
+    first = service.score_payment(
+        "pay_Test123",
+        _context(),
+    )
+    database = tmp_path / "razorpay.sqlite3"
+
+    with sqlite3.connect(database) as connection:
+        row = connection.execute(
+            "SELECT response_json FROM payment_scores "
+            "WHERE payment_id = ?",
+            ("pay_Test123",),
+        ).fetchone()
+        assert row is not None
+        legacy = json.loads(row[0])
+        del legacy["score"]["calibration_version"]
+        connection.execute(
+            "UPDATE payment_scores SET response_json = ? "
+            "WHERE payment_id = ?",
+            (
+                json.dumps(
+                    legacy,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                "pay_Test123",
+            ),
+        )
+
+    replay = service.score_payment(
+        "pay_Test123",
+        _context(),
+    )
+
+    assert first.delivery_mode == "CALCULATED"
+    assert replay.delivery_mode == "IDEMPOTENT_REPLAY"
+    assert (
+        replay.score.calibration_version
+        == LEGACY_CALIBRATION_VERSION
+    )
+    assert (
+        replay.score.calibrated_probability
+        == first.score.calibrated_probability
+    )
+    assert calls["score"] == 1
 
 
 def test_payment_context_cannot_change_after_score(

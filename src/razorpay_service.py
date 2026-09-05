@@ -40,6 +40,38 @@ from src.risk_scoring import (
 )
 
 
+LEGACY_CALIBRATION_VERSION = "legacy-unrecorded"
+
+
+def _upgrade_legacy_cached_payment_score(
+    cached: dict,
+) -> dict:
+    """Add only metadata absent from the pre-0.1 cache schema.
+
+    Historical scores remain immutable: probabilities and decisions are
+    replayed exactly as stored. The old schema recorded the model and
+    calibration method but not a calibration artifact version, so that
+    missing provenance is labeled explicitly instead of guessed.
+    """
+    score = cached.get("score")
+
+    if (
+        not isinstance(score, dict)
+        or "calibration_version" in score
+        or "model_version" not in score
+        or "calibration_method" not in score
+    ):
+        return cached
+
+    upgraded = dict(cached)
+    upgraded_score = dict(score)
+    upgraded_score["calibration_version"] = (
+        LEGACY_CALIBRATION_VERSION
+    )
+    upgraded["score"] = upgraded_score
+    return upgraded
+
+
 class RazorpayServiceError(RuntimeError):
     pass
 
@@ -583,7 +615,9 @@ class RazorpayRiskService:
             try:
                 cached_result = (
                     RazorpayPaymentRiskResult.model_validate(
-                        cached
+                        _upgrade_legacy_cached_payment_score(
+                            cached
+                        )
                     )
                 )
             except ValidationError as error:

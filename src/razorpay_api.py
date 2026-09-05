@@ -35,7 +35,6 @@ from src.razorpay_service import (
     RazorpayOperationInProgressError,
     RazorpayOrderIntent,
     RazorpayOrderResult,
-    RazorpayPaymentRiskResult,
     RazorpayRiskService,
     RazorpayServiceAuthenticationError,
     RazorpayServiceUnavailableError,
@@ -270,12 +269,12 @@ def razorpay_status(
 )
 async def receive_razorpay_webhook(
     request: Request,
-    razorpay_signature: str = Header(
-        ...,
+    razorpay_signature: str | None = Header(
+        default=None,
         alias="X-Razorpay-Signature",
     ),
     razorpay_event_id: str = Header(
-        ...,
+        default="",
         alias="X-Razorpay-Event-Id",
     ),
     service: RazorpayWebhookService = Depends(
@@ -283,6 +282,11 @@ async def receive_razorpay_webhook(
     ),
 ) -> RazorpayWebhookDeliveryResult:
     try:
+        if razorpay_signature is None:
+            raise RazorpayWebhookSignatureError(
+                "Webhook signature is missing."
+            )
+
         # Stream into a bounded buffer so the exact bytes reach
         # signature verification without accepting an unbounded
         # request body. Do not declare a Pydantic body model.
@@ -669,63 +673,3 @@ def fetch_razorpay_payment(
         synthetic_evaluation_separate=True,
         action_executed=False,
     )
-
-
-@router.post(
-    "/payments/{payment_id}/score",
-    response_model=RazorpayPaymentRiskResult,
-)
-def score_razorpay_payment(
-    payment_id: str,
-    context: RazorpayMerchantRiskContext,
-    service: RazorpayRiskService = Depends(
-        get_razorpay_service
-    ),
-) -> RazorpayPaymentRiskResult:
-    try:
-        return service.score_payment(
-            payment_id,
-            context,
-        )
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=(
-                status.HTTP_422_UNPROCESSABLE_CONTENT
-            ),
-            detail=(
-                "Invalid Razorpay payment or "
-                "capture-time context."
-            ),
-        ) from error
-
-    except RazorpayServiceValidationError as error:
-        raise HTTPException(
-            status_code=(
-                status.HTTP_422_UNPROCESSABLE_CONTENT
-            ),
-            detail=str(error),
-        ) from error
-
-    except RazorpayIdempotencyConflictError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "Payment was already scored with "
-                "different capture-time input."
-            ),
-        ) from error
-
-    except (
-        RazorpayServiceUnavailableError,
-        RazorpayStoreError,
-    ) as error:
-        raise HTTPException(
-            status_code=(
-                status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
-            detail=(
-                "Razorpay Test Mode scoring is "
-                "temporarily unavailable."
-            ),
-        ) from error

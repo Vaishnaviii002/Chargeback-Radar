@@ -2,12 +2,20 @@
   "schema_version": "1.0",
   "project": "Chargeback Radar",
   "submission_track": "Razorpay AI Buildathon Track 02",
-  "generated_at_utc": "2026-09-03T17:49:30.442963+00:00",
+  "versions": {
+    "model": "0.1.0",
+    "dataset": null,
+    "shap_explanation": "shap-v1",
+    "text_explanation": "plain-v1",
+    "evidence_schema": "1.0",
+    "razorpay_normalization": "razorpay-normalizer-v1"
+  },
+  "generated_at_utc": "2026-09-05T09:18:41.339789+00:00",
   "reproducibility": {
     "python_version": "3.14.7",
     "command": "python -m src.pipeline",
     "source": {
-      "commit": "b709f0773f0d15097443276758cc1fbb13a5ff91",
+      "commit": "3e85bf8fb701f5dcbda086a6e16f339c725be7e6",
       "working_tree_dirty": true
     },
     "steps": [
@@ -15,61 +23,103 @@
         "name": "Generate customers and payments",
         "module": "src.generate",
         "status": "completed",
-        "duration_seconds": 1.159
+        "duration_seconds": 1.118
       },
       {
         "name": "Generate delayed chargeback outcomes",
         "module": "src.outcomes",
         "status": "completed",
-        "duration_seconds": 1.005
+        "duration_seconds": 0.858
       },
       {
         "name": "Generate post-payment operations",
         "module": "src.operations",
         "status": "completed",
-        "duration_seconds": 0.914
+        "duration_seconds": 1.015
       },
       {
         "name": "Build leakage-safe features",
         "module": "src.features",
         "status": "completed",
-        "duration_seconds": 2.469
+        "duration_seconds": 2.574
       },
       {
         "name": "Train customer-disjoint model",
         "module": "src.train",
         "status": "completed",
-        "duration_seconds": 2.801
+        "duration_seconds": 2.853
       },
       {
         "name": "Calibrate probabilities",
         "module": "src.calibrate",
         "status": "completed",
-        "duration_seconds": 2.51
+        "duration_seconds": 1.705
       },
       {
         "name": "Evaluate untouched test set",
         "module": "src.evaluate",
         "status": "completed",
-        "duration_seconds": 1.814
+        "duration_seconds": 1.748
       },
       {
         "name": "Backtest default policy",
         "module": "src.decide",
         "status": "completed",
-        "duration_seconds": 1.663
+        "duration_seconds": 1.549
       },
       {
         "name": "Build review-cost frontier",
         "module": "src.policy_lab",
         "status": "completed",
-        "duration_seconds": 2.057
+        "duration_seconds": 1.883
       },
       {
         "name": "Build effectiveness sensitivity",
         "module": "src.effectiveness_sensitivity",
         "status": "completed",
-        "duration_seconds": 1.937
+        "duration_seconds": 1.621
+      },
+      {
+        "name": "Generate SHAP explanations",
+        "module": "src.explain",
+        "status": "completed",
+        "duration_seconds": 5.64
+      },
+      {
+        "name": "Generate deterministic explanation text",
+        "module": "src.model_explanation_service",
+        "status": "completed",
+        "duration_seconds": 2.213
+      },
+      {
+        "name": "Generate timestamped support events",
+        "module": "src.support_events",
+        "status": "completed",
+        "duration_seconds": 1.638
+      },
+      {
+        "name": "Generate sanitized support signals",
+        "module": "src.support_signal_report",
+        "status": "completed",
+        "duration_seconds": 75.092
+      },
+      {
+        "name": "Run controlled support-signal ablation",
+        "module": "src.ablation",
+        "status": "completed",
+        "duration_seconds": 4.079
+      },
+      {
+        "name": "Run deterministic evidence guardrails",
+        "module": "src.evidence_redteam",
+        "status": "completed",
+        "duration_seconds": 0.212
+      },
+      {
+        "name": "Generate model card",
+        "module": "src.model_card",
+        "status": "completed",
+        "duration_seconds": 1.764
       }
     ]
   },
@@ -575,6 +625,273 @@
     },
     "disclosure": "LOW, BASE, and HIGH are assumption scenarios, not confidence intervals. Evidence recovery and manual-review prevention rates vary while all other costs remain fixed. All results use the same held-out synthetic test set."
   },
+  "support_signal_ablation": {
+    "report_version": "ablation-v1",
+    "experiment": "Baseline tabular model versus tabular plus three timestamp-safe support-text signals",
+    "target": "chargeback_within_120d",
+    "seed": 42,
+    "synthetic_data": true,
+    "dataset": {
+      "training_rows": 59048,
+      "calibration_rows": 8779,
+      "test_rows": 12173,
+      "training_positives": 420,
+      "calibration_positives": 71,
+      "test_positives": 87,
+      "test_base_rate": 0.007146964593773104
+    },
+    "controls": {
+      "same_payment_rows": true,
+      "same_customer_disjoint_splits": true,
+      "same_seed": true,
+      "same_lightgbm_parameters": true,
+      "same_early_stopping_procedure": true,
+      "same_calibration_selection": true,
+      "same_evaluation_procedure": true,
+      "train_period": "months 1-9",
+      "calibration_period": "month 10",
+      "test_period": "months 11-12",
+      "support_scoring_policy": "payment timestamp plus 7 days",
+      "support_events_after_scoring_excluded": true
+    },
+    "baseline": {
+      "name": "baseline",
+      "model_version": "ablation-baseline-v1",
+      "features": [
+        "card_network",
+        "product_category",
+        "cvv_result",
+        "threeds_status",
+        "amount_paise",
+        "hour_of_day",
+        "day_of_week",
+        "is_weekend",
+        "is_digital_good",
+        "descriptor_clarity_score",
+        "phone_verified",
+        "email_verified",
+        "account_age_days",
+        "has_prior_order",
+        "total_prior_orders",
+        "prior_disputes_count",
+        "days_since_last_order",
+        "txns_last_1h",
+        "txns_last_24h",
+        "txns_last_7d",
+        "amount_last_24h_paise",
+        "device_is_new",
+        "ip_country_matches_billing",
+        "ip_is_proxy_or_vpn",
+        "threeds_liability_shift",
+        "billing_shipping_distance_km"
+      ],
+      "feature_count": 26,
+      "categorical_features": [
+        "card_network",
+        "product_category",
+        "cvv_result",
+        "threeds_status"
+      ],
+      "numerical_features": [
+        "amount_paise",
+        "hour_of_day",
+        "day_of_week",
+        "is_weekend",
+        "is_digital_good",
+        "descriptor_clarity_score",
+        "phone_verified",
+        "email_verified",
+        "account_age_days",
+        "has_prior_order",
+        "total_prior_orders",
+        "prior_disputes_count",
+        "days_since_last_order",
+        "txns_last_1h",
+        "txns_last_24h",
+        "txns_last_7d",
+        "amount_last_24h_paise",
+        "device_is_new",
+        "ip_country_matches_billing",
+        "ip_is_proxy_or_vpn",
+        "threeds_liability_shift",
+        "billing_shipping_distance_km"
+      ],
+      "seed": 42,
+      "best_iteration": 1,
+      "scale_pos_weight": 139.59047619047618,
+      "selected_calibration_method": "isotonic",
+      "calibration_selection": {
+        "sigmoid_selection_brier": 0.007169833076260316,
+        "isotonic_selection_brier": 0.007088171760857303
+      },
+      "metrics": {
+        "average_precision": 0.1492642172195245,
+        "pr_auc": 0.3911848398094481,
+        "precision": 0.1946564885496183,
+        "recall": 0.5862068965517241,
+        "f1": 0.2922636103151863,
+        "brier_score": 0.0062581254145627025,
+        "expected_calibration_error": 0.001502145365291251,
+        "precision_at_1_percent": 0.18032786885245902,
+        "precision_at_5_percent": 0.1116584564860427,
+        "operating_threshold": 0.16013071895424835,
+        "flagged_count": 262,
+        "flagged_rate": 0.021523042799638546,
+        "true_positive": 51,
+        "false_positive": 211,
+        "false_negative": 36,
+        "true_negative": 11875
+      }
+    },
+    "enhanced": {
+      "name": "enhanced",
+      "model_version": "ablation-enhanced-v1",
+      "features": [
+        "card_network",
+        "product_category",
+        "cvv_result",
+        "threeds_status",
+        "amount_paise",
+        "hour_of_day",
+        "day_of_week",
+        "is_weekend",
+        "is_digital_good",
+        "descriptor_clarity_score",
+        "phone_verified",
+        "email_verified",
+        "account_age_days",
+        "has_prior_order",
+        "total_prior_orders",
+        "prior_disputes_count",
+        "days_since_last_order",
+        "txns_last_1h",
+        "txns_last_24h",
+        "txns_last_7d",
+        "amount_last_24h_paise",
+        "device_is_new",
+        "ip_country_matches_billing",
+        "ip_is_proxy_or_vpn",
+        "threeds_liability_shift",
+        "billing_shipping_distance_km",
+        "intent_to_cancel",
+        "non_receipt_complaint",
+        "dissatisfaction"
+      ],
+      "feature_count": 29,
+      "categorical_features": [
+        "card_network",
+        "product_category",
+        "cvv_result",
+        "threeds_status"
+      ],
+      "numerical_features": [
+        "amount_paise",
+        "hour_of_day",
+        "day_of_week",
+        "is_weekend",
+        "is_digital_good",
+        "descriptor_clarity_score",
+        "phone_verified",
+        "email_verified",
+        "account_age_days",
+        "has_prior_order",
+        "total_prior_orders",
+        "prior_disputes_count",
+        "days_since_last_order",
+        "txns_last_1h",
+        "txns_last_24h",
+        "txns_last_7d",
+        "amount_last_24h_paise",
+        "device_is_new",
+        "ip_country_matches_billing",
+        "ip_is_proxy_or_vpn",
+        "threeds_liability_shift",
+        "billing_shipping_distance_km",
+        "intent_to_cancel",
+        "non_receipt_complaint",
+        "dissatisfaction"
+      ],
+      "seed": 42,
+      "best_iteration": 1,
+      "scale_pos_weight": 139.59047619047618,
+      "selected_calibration_method": "isotonic",
+      "calibration_selection": {
+        "sigmoid_selection_brier": 0.007258953302297167,
+        "isotonic_selection_brier": 0.0072146149415025914
+      },
+      "metrics": {
+        "average_precision": 0.15277227434250096,
+        "pr_auc": 0.41311955647552134,
+        "precision": 0.1936619718309859,
+        "recall": 0.632183908045977,
+        "f1": 0.29649595687331537,
+        "brier_score": 0.006200203604559542,
+        "expected_calibration_error": 0.001240663516331954,
+        "precision_at_1_percent": 0.18032786885245902,
+        "precision_at_5_percent": 0.11494252873563218,
+        "operating_threshold": 0.1601423487544484,
+        "flagged_count": 284,
+        "flagged_rate": 0.023330321202661628,
+        "true_positive": 55,
+        "false_positive": 229,
+        "false_negative": 32,
+        "true_negative": 11857
+      }
+    },
+    "delta_enhanced_minus_baseline": {
+      "average_precision": 0.003508057122976471,
+      "pr_auc": 0.021934716666073217,
+      "precision": -0.0009945167186324044,
+      "recall": 0.04597701149425293,
+      "f1": 0.0042323465581290964,
+      "brier_score": -5.792181000316074e-05,
+      "expected_calibration_error": -0.000261481848959297,
+      "precision_at_1_percent": 0.0,
+      "precision_at_5_percent": 0.003284072249589487,
+      "flagged_count": 22,
+      "flagged_rate": 0.0018072784030230826,
+      "true_positive": 4,
+      "false_positive": 18,
+      "false_negative": -4,
+      "true_negative": -18
+    },
+    "canonical_baseline_comparison": {
+      "canonical_selected_method": "isotonic",
+      "ablation_selected_method": "isotonic",
+      "metric_differences": {
+        "average_precision": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "brier_score": 0.0,
+        "expected_calibration_error": 0.0,
+        "precision_at_1_percent": 0.0,
+        "precision_at_5_percent": 0.0
+      },
+      "maximum_absolute_difference": 0.0
+    },
+    "interpretation_rule": "Publish all deltas honestly. A negative delta means the enhanced model performed worse on that metric.",
+    "limitations": [
+      "All payments, outcomes and support messages are synthetic.",
+      "The enhanced model uses support text observable up to seven days after payment, while baseline tabular features are capture-time features.",
+      "This experiment demonstrates controlled methodology and does not establish real-world generalization."
+    ]
+  },
+  "model_card": {
+    "version": "model-card-v1",
+    "path": "MODEL_CARD.md",
+    "json_path": "reports/model_card.json"
+  },
+  "evidence_guardrails": {
+    "report_path": "reports/evidence_guardrail_eval.json",
+    "summary": {
+      "total_scenarios": 13,
+      "passed_scenarios": 13,
+      "false_accepts": 0,
+      "false_rejects": 0,
+      "pass_rate": 1.0
+    }
+  },
   "artifact_inventory": [
     {
       "path": "data/customers.parquet",
@@ -670,11 +987,83 @@
       "path": "reports/test_policy.parquet",
       "bytes": 788584,
       "sha256": "9e77a391bab386b56c76ec0d90e40c02b10a2541601d9901f052f2de0290dd7e"
+    },
+    {
+      "path": "reports/test_explanations.parquet",
+      "bytes": 6986032,
+      "sha256": "6a1bb727e68cfb8b5790ad33c2472ad3532bc4c22d249015cef9bed1369e668e"
+    },
+    {
+      "path": "reports/test_model_explanations.parquet",
+      "bytes": 2858313,
+      "sha256": "0a23cd9d10baf5364ae0d59fa70085edead00a4d09a55226974ade53d5ff5d48"
+    },
+    {
+      "path": "data/support_events.parquet",
+      "bytes": 541113,
+      "sha256": "166840daaf0e25d03c7d1cd4089d3ae2efca59c2e89427d340567d99c7cc8435"
+    },
+    {
+      "path": "data/support_scoring.parquet",
+      "bytes": 1219140,
+      "sha256": "f177076589eaba8c75fe525da6789806a344158e495f8af101443fa61df4035f"
+    },
+    {
+      "path": "reports/support_signals.parquet",
+      "bytes": 1260499,
+      "sha256": "478a801f7e1655b7ae050b762e3358e888eb501fb56bcb0a51e973e8da482a77"
+    },
+    {
+      "path": "reports/ablation.json",
+      "bytes": 7877,
+      "sha256": "5bdefadd0381b74af352763545ce2a057cd3f6e006af8a199acdf0d413c6cd2b"
+    },
+    {
+      "path": "reports/ablation_test_predictions.parquet",
+      "bytes": 93668,
+      "sha256": "97c02b21a25e9995d32da0d2bfc53f020b29b5d4d77b45fabca08fc900c2837b"
+    },
+    {
+      "path": "reports/evidence_guardrail_eval.json",
+      "bytes": 3258,
+      "sha256": "eaf6a594a32f4c98c2b9fc2184d9bd45b20d22e35923271bf7561c33c1e953f0"
+    },
+    {
+      "path": "reports/model_card.json",
+      "bytes": 10117,
+      "sha256": "41e35b04ff1179211e1e40022a53f5612eccdadef882f7a3e951f46039d362db"
+    },
+    {
+      "path": "MODEL_CARD.md",
+      "bytes": 7820,
+      "sha256": "779249e3d1801691b441628870adc298d6e3213d493c98a6e59c164c7ffd777e"
     }
   ],
   "defense_only_controls": {
     "automatic_financial_actions": false,
     "human_approval_required": true,
     "post_payment_rules_isolated_from_model_features": true
+  },
+  "razorpay_test_mode": {
+    "real_money_used": false,
+    "automatic_financial_actions": false,
+    "checkout_signature_verified_server_side": true,
+    "demo_data_excluded_from_canonical_evaluation": true,
+    "normalization_version": "razorpay-normalizer-v1"
+  },
+  "validation": {
+    "status": "PASS",
+    "verified_at_utc": "2026-09-05T09:20:09Z",
+    "release_command": ".\\scripts\\verify_release.ps1",
+    "release_gate_duration_seconds": 21.98,
+    "pipeline_result": "PASS: 17 stages in 107.9 seconds",
+    "backend_test_command": "python -m pytest -q",
+    "backend_test_result": "PASS: 514 passed, 5 accepted third-party warnings in 11.74 seconds",
+    "frontend_lint_command": "npm --prefix frontend run lint",
+    "frontend_lint_result": "PASS",
+    "frontend_build_command": "npm --prefix frontend run build",
+    "frontend_build_result": "PASS: TypeScript and Vite production build",
+    "openapi_result": "PASS: 23 paths, 23 unique operation IDs",
+    "independent_review": "PASS: no blocking findings remain"
   }
 }

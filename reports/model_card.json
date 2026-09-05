@@ -153,17 +153,16 @@
     "payments_with_observable_text": 8270,
     "excluded_future_events": 5297,
     "delivery_mode_counts": {
-      "CACHE": 79999,
-      "DETERMINISTIC_FALLBACK": 1
+      "CACHE": 79963,
+      "DETERMINISTIC_FALLBACK": 37
     },
     "provider_counts": {
-      "deterministic_fallback": 71730,
-      "openai": 8270
+      "deterministic_fallback": 80000
     },
-    "fallback_rows": 71730,
+    "fallback_rows": 80000,
     "fallback_reason_counts": {
-      "CACHED_FALLBACK": 71729,
-      "NONE": 8270,
+      "CACHED_FALLBACK": 79963,
+      "AI_DISABLED": 36,
       "NO_OBSERVABLE_TEXT": 1
     },
     "signals": {
@@ -303,9 +302,7 @@
   },
   "known_limitations": [
     "The dataset, chargebacks, operational events and support messages are synthetic.",
-    [
-      "Absolute performance does not establish real-world generalization to merchant traffic."
-    ],
+    "Absolute performance does not establish real-world generalization to merchant traffic.",
     "Issuer, network and merchant behavior is simplified compared with production.",
     "Concept drift and live population drift have not been measured.",
     "Support-text signals are evaluated at a seven-day post-payment scoring point.",

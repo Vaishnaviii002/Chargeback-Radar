@@ -102,6 +102,7 @@ class RiskScoreResult(BaseModel):
     ]
 
     model_version: str
+    calibration_version: str
     calibration_method: Literal[
         "isotonic",
         "sigmoid",
@@ -450,6 +451,9 @@ def score_capture_time_payment(
         ),
         model_version=str(
             model_bundle["model_version"]
+        ),
+        calibration_version=str(
+            calibrator_bundle["version"]
         ),
         calibration_method=(
             calibrator_bundle["method"]

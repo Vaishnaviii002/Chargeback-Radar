@@ -227,6 +227,10 @@ def test_reusable_service_matches_existing_api() -> None:
     ] == service_result.model_version
 
     assert api_result[
+        "calibration_version"
+    ] == service_result.calibration_version
+
+    assert api_result[
         "calibration_method"
     ] == service_result.calibration_method
 

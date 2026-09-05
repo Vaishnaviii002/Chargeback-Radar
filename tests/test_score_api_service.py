@@ -73,6 +73,7 @@ def _fake_result() -> RiskScoreResult:
             "RECOMMEND_REFUND": 2500.0,
         },
         model_version="0.1.0",
+        calibration_version="0.1.0",
         calibration_method="isotonic",
         requires_human_approval=False,
         action_executed=False,

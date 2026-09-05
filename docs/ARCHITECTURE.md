@@ -20,13 +20,13 @@ Order creation validates INR amounts and canonical idempotency input before the 
 
 Checkout success is not trusted by itself. The backend verifies HMAC-SHA256 over the server-owned order ID and returned payment ID in constant time before provider lookup. It then binds provider order/payment IDs, amount, INR currency, card method, and authorized/captured status. Merchant-declared context is marked separately, must be timezone-aware, and cannot be observed after the payment timestamp. Only approved capture-time features enter the existing model and isotonic calibrator.
 
-The primary frontend flow calls `verify-and-score`; the read/score endpoints remain non-mutating Test Mode diagnostics. All responses state that held-out evaluation is unaffected and no financial action was executed.
+The primary frontend flow calls `verify-and-score`. Read-only order and payment lookup endpoints remain available for Test Mode diagnostics, but direct payment-ID scoring is not mounted: scoring requires the server-owned order ID, Checkout HMAC, and provider order/payment binding. All responses state that held-out evaluation is unaffected and no financial action was executed.
 
 ## Webhook path
 
 The webhook endpoint streams exact raw request bytes into a 1 MB bounded buffer. HMAC verification occurs before JSON decoding. The parser applies an eight-event allowlist and extracts only safe resource IDs. SQLite atomically reserves each event ID against the exact payload hash, returns an idempotent replay for identical duplicates, and rejects changed content.
 
-The `webhook_events` table contains only `event_id`, `payload_hash`, `event_type`, `status`, `received_at`, and `processed_at`. It contains no raw body, PII, customer text, card data, or secret.
+The `webhook_events` table contains only `event_id`, `payload_hash`, `event_type`, `status`, `received_at`, and `processed_at`. It contains no raw body, PII, customer text, card data, or secret. `RAZORPAY_DATABASE_PATH` selects a writable persistent-volume location for a single-instance deployment. Legacy cached scores that predate calibration-version metadata remain replayable with an explicit `legacy-unrecorded` provenance label; their probabilities and decisions are not altered.
 
 ## Trust boundaries
 
@@ -41,4 +41,4 @@ The `webhook_events` table contains only `event_id`, `payload_hash`, `event_type
 
 ## Runtime artifacts
 
-Canonical reports are tracked. Generated data, model/calibrator binaries, caches, audit logs, SQLite files, and frontend build output are ignored. CI and the backend Docker image regenerate required baseline binaries using `python -m src.pipeline`; local release verification validates them before starting tests.
+Canonical reports are tracked. Generated data, model/calibrator binaries, caches, audit logs, SQLite files, and frontend build output are ignored. CI and the backend Docker image regenerate the complete canonical artifact chain using `python -m src.pipeline`; local release verification validates it before starting tests.

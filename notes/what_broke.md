@@ -130,3 +130,49 @@ Cause: Recharts and the dashboard currently ship in one bundle.
 Decision: Accepted temporarily because it does not affect correctness or the local demo. Route/component-level lazy loading remains a deployment-hardening task.
 
 Status: Known, non-blocking and intentionally disclosed.
+
+14. The legacy Razorpay direct-scoring route was still public
+
+Symptom: OpenAPI exposed `POST /api/razorpay-test/payments/{payment_id}/score` even though the secure Checkout flow was also available.
+
+Risk: A client could request model scoring with only a provider payment ID and merchant context, bypassing Checkout signature verification and server-owned order/payment binding.
+
+Fix: Removed the public route. The verified `orders/{order_id}/verify-and-score` route is now the only Razorpay scoring entry point, and release validation asserts that the legacy path is absent.
+
+15. The one-command pipeline left downstream reports stale
+
+Symptom: `python -m src.pipeline` stopped after policy sensitivity while CI validated previously tracked SHAP, support, ablation, evidence, and model-card files.
+
+Fix: Extended the pipeline through all downstream governance stages, forced external integrations off, added every required output to the artifact contract, and made manifest replacement atomic.
+
+16. Windows console encoding stopped a valid pipeline run
+
+Symptom: `src.evaluate` generated its reports but then failed while printing the rupee symbol under a legacy Windows code page.
+
+Fix: Canonical pipeline subprocesses now run with UTF-8 I/O, and the parent summary uses the ASCII `INR` currency label. This changes only console reliability, not model data or metrics.
+
+17. A model-card limitation was serialized as a nested list
+
+Symptom: JSON contained a one-element list inside `known_limitations`, and Markdown displayed Python tuple syntax.
+
+Cause: An accidental extra pair of parentheses plus a trailing comma created a tuple.
+
+Fix: Restored the limitation as a plain string, regenerated both model-card formats, and added a contract test requiring every limitation to be a string.
+
+18. A missing webhook signature returned framework validation output
+
+Symptom: An unsigned webhook request received FastAPI's default 422 response instead of the integration's sanitized 401 authentication response.
+
+Fix: Made the transport header optional at the framework boundary and rejected an absent value inside the existing signature-verification error path. Missing and invalid signatures now share the same safe 401 contract.
+
+19. Pre-versioned Razorpay scores could not replay
+
+Symptom: A legitimate cached score created before calibration-version metadata was added failed strict response validation after upgrade.
+
+Fix: Added a narrowly scoped compatibility adapter that labels the absent provenance as `legacy-unrecorded` while preserving the stored probability and decision byte-for-byte. Corrupt records with any other contract failure still fail closed.
+
+20. Razorpay SQLite storage was fixed to a relative path
+
+Symptom: A managed single-instance deployment could not place the replay database on its persistent volume without changing source code.
+
+Fix: Added `RAZORPAY_DATABASE_PATH`, retained `runtime/razorpay.sqlite3` as the safe local default, and documented the deployment setting.

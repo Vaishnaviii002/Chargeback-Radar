@@ -421,10 +421,10 @@ def test_router_is_mounted_in_main_application() -> None:
             "{order_id}/verify-and-score"
         ),
         "/api/razorpay-test/payments/{payment_id}",
-        (
-            "/api/razorpay-test/payments/"
-            "{payment_id}/score"
-        ),
     }
 
     assert expected.issubset(paths)
+    assert (
+        "/api/razorpay-test/payments/{payment_id}/score"
+        not in paths
+    )

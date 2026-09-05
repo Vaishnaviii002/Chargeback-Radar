@@ -99,6 +99,7 @@ export type RiskScore = {
     number
   >;
   model_version: string;
+  calibration_version: string;
   calibration_method: string;
   requires_human_approval: boolean;
   action_executed: false;

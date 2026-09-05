@@ -329,7 +329,7 @@ def test_unavailable_webhook_returns_503(
     assert str(error) not in response.text
 
 
-def test_required_headers_are_enforced(
+def test_missing_signature_returns_safe_401(
     client: TestClient,
 ) -> None:
     service = FakeWebhookService()
@@ -343,5 +343,11 @@ def test_required_headers_are_enforced(
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": (
+            "Razorpay webhook signature "
+            "verification failed."
+        )
+    }
     assert service.calls == []

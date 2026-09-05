@@ -322,7 +322,7 @@
     padding: 21px;
   }
 
-    .razorpay-score-grid {
+  .razorpay-score-grid {
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
   }
@@ -337,10 +337,7 @@
   }
 
   .razorpay-test-controls {
-      grid-template-columns:
-    minmax(160px, 220px)
-    minmax(210px, 1fr)
-    minmax(190px, max-content);
+    grid-template-columns: 1fr;
   }
 
   .razorpay-test-controls button {
@@ -355,7 +352,7 @@
 @media (prefers-reduced-motion: reduce) {
   .razorpay-test-controls button,
   .razorpay-test-controls input,
-.razorpay-test-controls select {
+  .razorpay-test-controls select {
     transition: none;
   }
 }

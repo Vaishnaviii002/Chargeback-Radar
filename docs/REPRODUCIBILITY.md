@@ -24,24 +24,15 @@ Secret values in `.env.example` are blank. Release validation sets all optional 
 
 ## Regeneration order
 
-Generated data and the model/calibrator binaries are ignored. Rebuild the canonical baseline from a clean checkout:
+Generated data and the model/calibrator binaries are ignored. Rebuild the complete canonical release from a clean checkout:
 
 ```powershell
 .\.venv\Scripts\python.exe -m src.pipeline
 ```
 
-Regenerate Phase 7 governance artifacts in this order when their inputs or code change:
+The command runs the full ordered chain: data and outcomes, capture-time features, disjoint model splits, calibration and held-out evaluation, policy reports, SHAP and deterministic explanation text, timestamped support events, sanitized offline support signals, controlled ablation, deterministic evidence red-team checks, model-card generation, and the submission manifest. It forces optional AI and Razorpay integrations off and uses fresh temporary evidence/support caches, so local `.env` settings or warm runtime caches cannot contaminate canonical artifacts.
 
-```powershell
-.\.venv\Scripts\python.exe -m src.explain
-.\.venv\Scripts\python.exe -m src.model_explanation_service
-.\.venv\Scripts\python.exe -m src.support_events
-.\.venv\Scripts\python.exe -m src.support_signal_report
-.\.venv\Scripts\python.exe -m src.ablation
-.\.venv\Scripts\python.exe -m src.model_card
-```
-
-`src.pipeline` records runtime durations and generation timestamps in the manifest, so those provenance fields may differ while the fixed-seed data, split, model, and metrics remain deterministic.
+`src.pipeline` records runtime durations and its invocation time in the manifest, so those run-provenance fields may differ. Canonical report timestamps honor a fixed `SOURCE_DATE_EPOCH`; fixed-seed data, ordering, split, model, explanations, and metrics remain deterministic.
 
 ## One-command release gate
 
@@ -58,7 +49,7 @@ The gate fails immediately on a missing stage and checks:
 - `plain-v1` text plus the exact **Model explanation — not evidence** label;
 - exactly three safe support signals, 8,270 observable events, and 5,297 future exclusions;
 - canonical ablation baseline and model-card/report agreement;
-- OpenAPI generation, unique operation IDs, and all eight Razorpay routes;
+- OpenAPI generation, unique operation IDs, all seven secure Razorpay routes, and absence of the unsafe direct payment-ID scoring route;
 - ignored/untracked secret, SQLite, runtime, cache, and frontend build paths;
 - credential-like strings and temporary public tunnel URLs in tracked text;
 - the complete backend suite, frontend lint and production build, and `git diff --check`.
@@ -71,7 +62,7 @@ The only accepted test warnings are current third-party SHAP/Matplotlib notices 
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pushes and pull requests with read-only repository permission. It installs Python 3.12 and Node 22, regenerates the ignored baseline artifacts, installs frontend dependencies with `npm ci`, and invokes the same PowerShell release gate. AI, Razorpay integration, and webhooks remain disabled. No real secret is defined or required.
+`.github/workflows/ci.yml` runs on pushes and pull requests with read-only repository permission. It installs Python 3.12 and Node 22, regenerates the complete canonical artifact chain, installs frontend dependencies with `npm ci`, and invokes the same PowerShell release gate. AI, Razorpay integration, and webhooks remain disabled. No real secret is defined or required.
 
 ## Production backend image
 

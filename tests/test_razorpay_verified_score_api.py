@@ -99,6 +99,7 @@ def successful_result() -> (
             "RECOMMEND_REFUND": 100.0,
         },
         model_version="0.1.0",
+        calibration_version="0.1.0",
         calibration_method="isotonic",
         requires_human_approval=False,
         action_executed=False,
@@ -221,6 +222,12 @@ def test_verified_payment_is_scored(
         payload["financial_action_executed"]
         is False
     )
+
+    serialized = response.text.lower()
+    assert "dispute_created" not in serialized
+    assert "refund_executed" not in serialized
+    assert "message_sent" not in serialized
+    assert "real issuer dispute" not in serialized
 
     assert len(service.calls) == 1
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,25 @@ OUTPUT_PATH = ROOT / "reports" / "test_explanations.parquet"
 
 EXPLANATION_VERSION = "shap-v1"
 TOP_K = 5
+
+
+def _generated_at_utc() -> str:
+    source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
+
+    if source_date_epoch is not None:
+        try:
+            generated_at = datetime.fromtimestamp(
+                int(source_date_epoch),
+                tz=timezone.utc,
+            )
+        except (OverflowError, ValueError) as error:
+            raise ValueError(
+                "SOURCE_DATE_EPOCH must be a valid Unix timestamp."
+            ) from error
+    else:
+        generated_at = datetime.now(timezone.utc)
+
+    return generated_at.replace(microsecond=0).isoformat()
 
 
 IDENTIFIER_FIELDS = {
@@ -657,11 +677,7 @@ def generate_explanations(
                 f"{max_error}"
             )
 
-    generated_at = (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-    )
+    generated_at = _generated_at_utc()
 
     records: list[dict[str, Any]] = []
 

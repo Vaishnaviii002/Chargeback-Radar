@@ -8,11 +8,14 @@ from unittest.mock import patch
 import pandas as pd
 
 from src.pipeline import (
+    OFFLINE_REPRODUCTION_ENV,
     PIPELINE_STEPS,
     REQUIRED_OUTPUTS,
     StepResult,
     build_submission_manifest,
+    run_step,
     sha256_file,
+    write_json_atomic,
 )
 
 
@@ -58,6 +61,29 @@ def build_fake_outputs(root: Path) -> None:
         {},
     )
     write_json(
+        root / "reports/ablation.json",
+        {
+            "baseline": {"metrics": {}},
+            "enhanced": {"metrics": {}},
+            "delta_enhanced_minus_baseline": {},
+        },
+    )
+    write_json(
+        root / "reports/evidence_guardrail_eval.json",
+        {
+            "schema_version": "1.0",
+            "summary": {"passed_scenarios": 1},
+        },
+    )
+    write_json(
+        root / "reports/model_card.json",
+        {"model_card_version": "model-card-v1"},
+    )
+    (root / "MODEL_CARD.md").write_text(
+        "# Model card\n",
+        encoding="utf-8",
+    )
+    write_json(
         root / "artifacts/feature_schema.json",
         {
             "target": "chargeback_within_120d",
@@ -67,7 +93,10 @@ def build_fake_outputs(root: Path) -> None:
     )
     write_json(
         root / "artifacts/model_metadata.json",
-        {"customer_disjoint": True},
+        {
+            "model_version": "0.1.0",
+            "customer_disjoint": True,
+        },
     )
     (root / "artifacts/model_bundle.joblib").write_bytes(b"model")
     (root / "artifacts/calibrator.joblib").write_bytes(b"calibrator")
@@ -104,6 +133,16 @@ def fake_read_parquet(
             }
         )
 
+    if filename == "test_explanations.parquet":
+        return pd.DataFrame(
+            {"explanation_version": ["shap-v1"]}
+        )
+
+    if filename == "test_model_explanations.parquet":
+        return pd.DataFrame(
+            {"text_explanation_version": ["plain-v1"]}
+        )
+
     raise AssertionError(f"Unexpected parquet read: {path}")
 
 
@@ -114,6 +153,16 @@ def test_pipeline_order_preserves_evaluation_integrity() -> None:
     assert modules.index("src.train") < modules.index("src.calibrate")
     assert modules.index("src.calibrate") < modules.index("src.evaluate")
     assert modules.index("src.evaluate") < modules.index("src.decide")
+    assert modules.index("src.explain") < modules.index(
+        "src.model_explanation_service"
+    )
+    assert modules.index("src.support_events") < modules.index(
+        "src.support_signal_report"
+    )
+    assert modules.index("src.support_signal_report") < modules.index(
+        "src.ablation"
+    )
+    assert modules.index("src.ablation") < modules.index("src.model_card")
 
 
 def test_sha256_file(tmp_path: Path) -> None:
@@ -123,6 +172,52 @@ def test_sha256_file(tmp_path: Path) -> None:
     assert sha256_file(path) == hashlib.sha256(
         b"chargeback-radar"
     ).hexdigest()
+
+
+def test_pipeline_steps_force_offline_safe_configuration(
+    tmp_path: Path,
+) -> None:
+    with patch("src.pipeline.subprocess.run") as run:
+        run_step(tmp_path, "Safe stage", "src.safe_stage")
+
+    environment = run.call_args.kwargs["env"]
+    assert all(
+        environment[name] == value
+        for name, value in OFFLINE_REPRODUCTION_ENV.items()
+    )
+
+
+def test_pipeline_step_applies_isolated_runtime_paths(
+    tmp_path: Path,
+) -> None:
+    isolated_cache = tmp_path / "isolated-cache"
+
+    with patch("src.pipeline.subprocess.run") as run:
+        run_step(
+            tmp_path,
+            "Safe stage",
+            "src.safe_stage",
+            {"SUPPORT_SIGNAL_CACHE_DIR": str(isolated_cache)},
+        )
+
+    assert (
+        run.call_args.kwargs["env"]["SUPPORT_SIGNAL_CACHE_DIR"]
+        == str(isolated_cache)
+    )
+
+
+def test_atomic_json_write_replaces_complete_document(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "manifest.json"
+    output.write_text("old", encoding="utf-8")
+
+    write_json_atomic(output, {"status": "complete"})
+
+    assert json.loads(output.read_text(encoding="utf-8")) == {
+        "status": "complete"
+    }
+    assert list(tmp_path.glob("*.tmp")) == []
 
 
 def test_manifest_consolidates_submission_evidence(
@@ -148,6 +243,14 @@ def test_manifest_consolidates_submission_evidence(
     assert manifest["defense_only_controls"][
         "automatic_financial_actions"
     ] is False
+    assert manifest["versions"] == {
+        "model": "0.1.0",
+        "dataset": None,
+        "shap_explanation": "shap-v1",
+        "text_explanation": "plain-v1",
+        "evidence_schema": "1.0",
+        "razorpay_normalization": "razorpay-normalizer-v1",
+    }
     assert len(manifest["artifact_inventory"]) == len(
         REQUIRED_OUTPUTS
     )

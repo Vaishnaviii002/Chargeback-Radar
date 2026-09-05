@@ -47,6 +47,22 @@ def _score_response() -> dict:
     }
 
 
+def test_default_database_path_is_configurable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    configured = tmp_path / "persistent" / "razorpay.sqlite3"
+    monkeypatch.setenv(
+        "RAZORPAY_DATABASE_PATH",
+        str(configured),
+    )
+
+    store = RazorpayStore()
+
+    assert store.database_path == configured
+    assert configured.is_file()
+
+
 def test_new_order_reservation_is_atomic(
     tmp_path,
 ) -> None:

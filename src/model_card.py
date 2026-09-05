@@ -135,10 +135,8 @@ KNOWN_LIMITATIONS: Final = [
         "events and support messages are synthetic."
     ),
     (
-        (
-    "Absolute performance does not establish "
-    "real-world generalization to merchant traffic."
-),
+        "Absolute performance does not establish "
+        "real-world generalization to merchant traffic."
     ),
     (
         "Issuer, network and merchant behavior is "

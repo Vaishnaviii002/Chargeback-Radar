@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "suite": "evidence_guardrails",
-  "evaluated_at": "2026-09-03T19:06:19.779201Z",
+  "evaluated_at": "2026-01-01T00:00:00Z",
   "summary": {
     "total_scenarios": 13,
     "passed_scenarios": 13,

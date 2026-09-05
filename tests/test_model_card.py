@@ -413,6 +413,16 @@ def test_markdown_contains_required_disclosures() -> None:
     )
 
 
+def test_known_limitations_are_plain_strings() -> None:
+    card = _load_json(MODEL_CARD_JSON_PATH)
+
+    assert card["known_limitations"]
+    assert all(
+        isinstance(item, str)
+        for item in card["known_limitations"]
+    )
+
+
 def test_outputs_contain_no_secrets() -> None:
     combined = (
         MODEL_CARD_MARKDOWN_PATH

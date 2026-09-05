@@ -154,11 +154,13 @@ Start from `.env.example`; its secret values are intentionally blank.
 | AI feature switches | `EVIDENCE_AI_ENABLED`, `MODEL_EXPLANATION_AI_ENABLED`, `SUPPORT_SIGNAL_AI_ENABLED` |
 | Evidence/runtime | `EVIDENCE_CACHE_DIR`, `EVIDENCE_CACHE_TTL_SECONDS`, `EVIDENCE_FALLBACK_CACHE_TTL_SECONDS`, `EVIDENCE_AUDIT_PATH`, `EVIDENCE_AUDIT_HMAC_KEY` |
 | Support/runtime | `SUPPORT_SIGNAL_CACHE_DIR`, `SUPPORT_SIGNAL_CACHE_TTL_SECONDS`, `SUPPORT_SIGNAL_FALLBACK_CACHE_TTL_SECONDS` |
-| Razorpay server | `RAZORPAY_INTEGRATION_ENABLED`, `RAZORPAY_TEST_MODE`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_TIMEOUT_SECONDS`, `RAZORPAY_WEBHOOK_ENABLED`, `RAZORPAY_WEBHOOK_SECRET` |
+| Razorpay server | `RAZORPAY_INTEGRATION_ENABLED`, `RAZORPAY_TEST_MODE`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_TIMEOUT_SECONDS`, `RAZORPAY_DATABASE_PATH`, `RAZORPAY_WEBHOOK_ENABLED`, `RAZORPAY_WEBHOOK_SECRET` |
 | Backend CORS | `BACKEND_ALLOWED_ORIGINS` (comma-separated exact origins; no wildcard) |
 | Frontend build | `VITE_API_URL` (public backend URL only) |
 
 Never put `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, an audit HMAC key, or an OpenAI key in `frontend/.env` or any `VITE_` variable. `RAZORPAY_TEST_MODE=false` is rejected.
+
+Set `RAZORPAY_DATABASE_PATH` to a writable persistent-volume location for a single-instance deployment. Existing pre-versioned cached scores replay with `calibration_version=legacy-unrecorded`; their stored probability and decision are never recomputed or rewritten.
 
 ## Verification and regeneration
 
@@ -182,15 +184,11 @@ Full deterministic report regeneration:
 
 ```powershell
 .\.venv\Scripts\python.exe -m src.pipeline
-.\.venv\Scripts\python.exe -m src.explain
-.\.venv\Scripts\python.exe -m src.model_explanation_service
-.\.venv\Scripts\python.exe -m src.support_events
-.\.venv\Scripts\python.exe -m src.support_signal_report
-.\.venv\Scripts\python.exe -m src.ablation
-.\.venv\Scripts\python.exe -m src.model_card
 ```
 
-See [Reproducibility](docs/REPRODUCIBILITY.md) for expected identities and acceptable third-party warnings. CI performs the baseline rebuild and the same release gate without external API or financial calls.
+This single command rebuilds synthetic data, features, disjoint splits, model, calibration, held-out reports, policies, SHAP and deterministic explanation text, support events/signals, controlled ablation, deterministic evidence guardrails, the model card, and the submission manifest. It forces optional AI and Razorpay network integrations off, uses isolated temporary caches, and applies a stable build timestamp for canonical reports.
+
+See [Reproducibility](docs/REPRODUCIBILITY.md) for expected identities and acceptable third-party warnings. CI performs the complete rebuild and the same release gate without external API or financial calls.
 
 ## Deployment
 
@@ -221,6 +219,7 @@ scripts/                 one-command release verification
 docs/                    architecture, security, reproducibility and demo runbook
 .github/workflows/       offline-safe CI
 Dockerfile               production backend image
+SUBMISSION_READINESS.md  verified release summary and Phase 10 handoff
 ```
 
 ## Known limitations

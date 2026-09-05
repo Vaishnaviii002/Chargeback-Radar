@@ -44,10 +44,9 @@ EXPECTED_RAZORPAY_PATHS = {
         "{order_id}/verify-and-score"
     ),
     "/api/razorpay-test/payments/{payment_id}",
-    (
-        "/api/razorpay-test/payments/"
-        "{payment_id}/score"
-    ),
+}
+FORBIDDEN_RAZORPAY_PATHS = {
+    "/api/razorpay-test/payments/{payment_id}/score",
 }
 
 
@@ -105,7 +104,11 @@ def validate_required_files() -> None:
         "reports/support_signals.parquet",
         "reports/ablation.json",
         "reports/ablation_test_predictions.parquet",
+        "reports/evidence_guardrail_eval.json",
         "reports/model_card.json",
+        "reports/submission_manifest.json",
+        "MODEL_CARD.md",
+        "SUBMISSION_READINESS.md",
     }
     missing = sorted(
         path
@@ -507,6 +510,10 @@ def validate_openapi() -> None:
     require(
         EXPECTED_RAZORPAY_PATHS <= paths,
         "One or more intended Razorpay routes are missing.",
+    )
+    require(
+        FORBIDDEN_RAZORPAY_PATHS.isdisjoint(paths),
+        "Unsafe direct Razorpay payment scoring route is exposed.",
     )
     operation_ids = [
         operation["operationId"]

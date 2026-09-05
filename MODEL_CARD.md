@@ -202,7 +202,7 @@ Customer identifiers may be used only to enforce customer-disjoint evaluation an
 ## Known limitations
 
 - The dataset, chargebacks, operational events and support messages are synthetic.
-- ('Absolute performance does not establish real-world generalization to merchant traffic.',)
+- Absolute performance does not establish real-world generalization to merchant traffic.
 - Issuer, network and merchant behavior is simplified compared with production.
 - Concept drift and live population drift have not been measured.
 - Support-text signals are evaluated at a seven-day post-payment scoring point.

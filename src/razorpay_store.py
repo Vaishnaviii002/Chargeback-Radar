@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -114,12 +115,16 @@ class RazorpayStore:
 
     def __init__(
         self,
-        database_path: str | Path = (
-            DEFAULT_DATABASE_PATH
-        ),
+        database_path: str | Path | None = None,
     ) -> None:
+        configured_path = (
+            os.getenv("RAZORPAY_DATABASE_PATH", "").strip()
+            if database_path is None
+            else database_path
+        )
+
         self.database_path = Path(
-            database_path
+            configured_path or DEFAULT_DATABASE_PATH
         )
 
         self.database_path.parent.mkdir(

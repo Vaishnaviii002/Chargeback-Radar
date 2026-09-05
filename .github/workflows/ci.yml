@@ -39,7 +39,7 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Rebuild deterministic baseline artifacts
+      - name: Rebuild complete deterministic artifacts
         run: python -m src.pipeline
 
       - name: Install frontend dependencies

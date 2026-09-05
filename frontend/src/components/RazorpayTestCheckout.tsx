@@ -557,8 +557,8 @@ export default function RazorpayTestCheckout() {
             </span>
 
             <span>
-              Model {score.model_version} ·{" "}
-              {score.calibration_method} calibration
+              Model {score.model_version} · Calibration{" "}
+              {score.calibration_version} ({score.calibration_method})
             </span>
 
             <span>
@@ -566,7 +566,7 @@ export default function RazorpayTestCheckout() {
             </span>
 
             <span>
-              Action executed: no
+              action_executed: false
             </span>
           </div>
         </div>
@@ -584,10 +584,13 @@ export default function RazorpayTestCheckout() {
       <p className="razorpay-test-disclosure">
         This Razorpay Test Mode result is separate
         from the synthetic held-out evaluation.
-        Model output is decision support—not proof
-        of fraud, customer intent or a future
-        chargeback. No refund, dispute response or
-        customer message is executed automatically.
+        Checkout verification authenticates the
+        Checkout response; it does not prove fraud,
+        a chargeback, or settlement. Model output is
+        decision support—not proof of customer intent
+        or a future chargeback. No refund, dispute
+        response or customer message is executed
+        automatically.
       </p>
     </section>
   );

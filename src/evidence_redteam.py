@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -298,6 +299,23 @@ def scenarios() -> list[RedTeamScenario]:
     ]
 
 
+def _evaluated_at() -> datetime:
+    source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
+
+    if source_date_epoch is None:
+        return datetime.now(tz=UTC)
+
+    try:
+        return datetime.fromtimestamp(
+            int(source_date_epoch),
+            tz=UTC,
+        )
+    except (OverflowError, ValueError) as error:
+        raise ValueError(
+            "SOURCE_DATE_EPOCH must be a valid Unix timestamp."
+        ) from error
+
+
 def run_redteam() -> RedTeamReport:
     results: list[RedTeamResult] = []
 
@@ -337,7 +355,7 @@ def run_redteam() -> RedTeamReport:
     passed = sum(result.passed for result in results)
 
     return RedTeamReport(
-        evaluated_at=datetime.now(tz=UTC),
+        evaluated_at=_evaluated_at(),
         summary=RedTeamSummary(
             total_scenarios=len(results),
             passed_scenarios=passed,
